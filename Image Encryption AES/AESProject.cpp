@@ -57,7 +57,7 @@ char RCON[10][4] = {
 uint32_t roundWords[11 * 4] = { 0 };
 
 void sBoxSubstitution(char* const& buffer, const int bufferSize);
-void rotateWordLeft(uint32_t& words, const int shiftAmount);
+void rotateWordsLeft(uint32_t& words, const int shiftAmount);
 void shiftCols(uint32_t* const& buffer, const int rowCount);
 void shiftRows(std::vector<char>& buffer, const int rowCount);
 void xorByteArray(std::vector<char>& buffer, char* key, int keySize);
@@ -125,7 +125,7 @@ int main(int argc, char* argv[])
         }
         std::cout << std::endl;
         uint32_t* TEST_WORDS = reinterpret_cast<uint32_t*>(test);
-        rotateWordLeft(*TEST_WORDS, 5);
+        rotateWordsLeft(*TEST_WORDS, 5);
         std::cout << std::endl;
         for (char c : test) {
             std::cout << static_cast<int>(c) << "\t";
@@ -156,7 +156,7 @@ void expandKeys(uint32_t* const& roundWords, int numRounds, const uint32_t* cons
     for (; i < numWords; ++i) {
         uint32_t temp = roundWords[i - 1];
         if (i % keySize == 0) {
-            rotateWordLeft(temp, 1);
+            rotateWordsLeft(temp, 1);
             sBoxSubstitution(reinterpret_cast<char*>(&temp), 4);
             temp = temp ^ *reinterpret_cast<uint32_t*>(RCON[i / keySize - 1]);
         }
@@ -172,7 +172,7 @@ void encryptBlock(char* const buffer, const int& key)
 
 }
 
-void rotateWordLeft(uint32_t& words, const int shiftAmount)
+void rotateWordsLeft(uint32_t& words, const int shiftAmount)
 {
     int shift = shiftAmount % sizeof(uint32_t);
     if (shift == 0)
@@ -225,7 +225,7 @@ std::vector<char> mixColumns(std::vector<char>& buffer, const int rowCount)
 void shiftCols(uint32_t* const& buffer, const int rowCount)
 {
     for (int row = 1; row < rowCount; ++row) {
-        rotateWordLeft(*(buffer + row), row);
+        rotateWordsLeft(*(buffer + row), row);
     }
 }
 
