@@ -226,6 +226,7 @@ std::vector<char> mixColumns(std::vector<char>& buffer, const int rowCount)
                         if (buffer[col1 * rowCount + col12] > 0x80)
                             temp ^= 0x1b;
                         mixed[col1 * rowCount + row2] ^= temp;
+                        break;
                     case 3:
                         temp = buffer[col1 * rowCount + col12] << 1;
                         if (buffer[col1 * rowCount + col12] > 0x80)
