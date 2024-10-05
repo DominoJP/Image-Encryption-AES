@@ -138,6 +138,9 @@ int main(int argc, char* argv[])
         expandKeys(roundWords, 10, KEY_WORDS, KEY_WORDS_SIZE);
         print2DBuffer(reinterpret_cast<unsigned char*>(roundWords), 176, 16);
 
+        std::cout << std::dec << std::bitset<8>(0x57) << std::endl;
+        std::cout << std::dec << std::bitset<8>(0x57 << 1) << std::endl;
+
     }
 
     // Done and close.
@@ -209,12 +212,29 @@ std::vector<char> mixColumns(std::vector<char>& buffer, const int rowCount)
     assert(buffer.size() % rowCount == 0);
 
     std::vector<char> mixed = std::vector<char>(BUFFER_SIZE, 0);
-
+    char temp = 0;
     int colCount = buffer.size() / rowCount;
     for (int col1 = 0; col1 < colCount; ++col1) {
         for (int row2 = 0; row2 < rowCount; ++row2) {
             for (int col12 = 0; col12 < rowCount; ++col12) {
-                mixed[col1 * rowCount + row2] += buffer[col1 * rowCount + col12] * COL_MIXER[row2][col12];
+                switch (COL_MIXER[row2][col12]) {
+                    case 1:
+                        mixed[col1 * rowCount + row2] ^= buffer[col1 * rowCount + col12];
+                        break;
+                    case 2:
+                        temp = buffer[col1 * rowCount + col12] << 1;
+                        if (buffer[col1 * rowCount + col12] > 0x80)
+                            temp ^= 0x1b;
+                        mixed[col1 * rowCount + row2] ^= temp;
+                    case 3:
+                        temp = buffer[col1 * rowCount + col12] << 1;
+                        if (buffer[col1 * rowCount + col12] > 0x80)
+                            temp ^= 0x1b;
+                        mixed[col1 * rowCount + row2] ^= temp ^ buffer[col1 * rowCount + col12];
+                        break;
+                    default:
+                        std::cout << "Error: Invalid Constant Array!" << std::endl;
+                }
             }
         }
     }
