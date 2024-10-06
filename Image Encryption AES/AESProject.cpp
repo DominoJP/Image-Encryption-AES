@@ -32,7 +32,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    // Open File argv[1]
+    // Open Input File argv[1]
     std::ifstream fin(argv[1], std::ifstream::binary);
     if (!fin.is_open()) {
         std::cout << "Error: could not open file \"" << argv[1] << "\" for read." << std::endl;

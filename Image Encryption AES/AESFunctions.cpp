@@ -34,7 +34,7 @@ void aes::encryptFileAES(std::ifstream & inFile, std::ofstream & outFile, uint32
             print2DBuffer(buffer.data(), buffer.size(), AES_BLOCK_ROWS);
         }
 
-        // AES Encryption. 10 rounds using 128-bit KEY_WORDS key.
+        // AES Encryption. 10 rounds using 128-bit key.
         encryptBlockAES(buffer, roundWords, 10, key, keyWordSize);
 
         // Write encrypted data to new file.
@@ -47,7 +47,7 @@ void aes::encryptBlockAES(std::vector<unsigned char>& buffer, uint32_t* roundWor
     static const int ROUND_KEY_SIZE = 16;
 
     // Ensure buffer size is 16 bytes (128 bits)
-    assert(buffer.size() == 16);
+    assert(buffer.size() == ROUND_KEY_SIZE);
 
     // Pointer we use to walk roundWords array in 32-bit steps
     uint32_t* roundKey = roundWords;
