@@ -31,7 +31,7 @@ void aes::encryptFileAES(std::ifstream & inFile, std::ofstream & outFile, uint32
 
             // Debug Print
             std::cout << "Padded Last Block: \n";
-            print2DBuffer(buffer, AES_BLOCK_ROWS);
+            print2DBuffer(buffer.data(), buffer.size(), AES_BLOCK_ROWS);
         }
 
         // AES Encryption. 10 rounds using 128-bit KEY_WORDS key.
@@ -293,20 +293,6 @@ void aes::sBoxSubstitution(unsigned char* const& buffer, const int bufferSize)
     }
 }
 
-void aes::print2DBuffer(const std::vector<unsigned char>& buffer, const int rowCount)
-{
-    assert(buffer.size() % rowCount == 0);
-
-    int colCount = buffer.size() / rowCount;
-    for (int row = 0; row < rowCount; ++row) {
-        for (int col = 0; col < colCount; ++col) {
-            std::cout << std::hex << std::bitset<8>(buffer.at(col * rowCount + row)).to_ulong() << "\t";
-            //std::cout << std::hex << static_cast<unsigned>(buffer[col * colCount + row]) << "\t";
-        }
-        std::cout << std::endl;
-    }
-}
-
 
 void aes::print2DBuffer(const unsigned char* const& buffer, const int size, const int colCount)
 {
@@ -315,7 +301,7 @@ void aes::print2DBuffer(const unsigned char* const& buffer, const int size, cons
     int rowCount = size / colCount;
     for (int col = 0; col < rowCount; ++col) {
         for (int row = 0; row < colCount; ++row) {
-            std::cout << std::hex << static_cast<unsigned>(buffer[col * colCount + row]) << "\t";
+            std::cout << std::hex << std::bitset<8>(buffer[col * rowCount + row]).to_ulong() << "\t";
         }
         std::cout << std::endl;
     }

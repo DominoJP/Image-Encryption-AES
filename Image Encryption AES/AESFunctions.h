@@ -23,8 +23,6 @@ namespace aes
 
 	void xorByteArray(unsigned char* buffer, unsigned char* key, int keySizeBytes);
 
-	void print2DBuffer(const std::vector<unsigned char>& buffer, const int rowCount);
-
 	void print2DBuffer(const unsigned char* const& buffer, const int size, const int rowCount);
 
 	std::vector<unsigned char> mixColumns(std::vector<unsigned char>& buffer, const int rowCount);
