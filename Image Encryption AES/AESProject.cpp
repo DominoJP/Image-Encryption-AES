@@ -5,9 +5,6 @@
 #include <iostream>
 #include "AESFunctions.h"
 
-#define KEY_SIZE 128
-#define KEY_CHAR_SIZE KEY_SIZE / (sizeof(unsigned char) * 8)
-#define KEY_WORD_SIZE KEY_SIZE / (sizeof(uint32_t) * 8)
 #define BUFFER_SIZE AES_BLOCK_SIZE
 
 
@@ -15,7 +12,7 @@
 const std::string EXT_STR = ".enc";
 
 // Function Declarations
-bool testKnown();
+bool testKnown128();
 
 int main(int argc, char* argv[])
 {
@@ -27,8 +24,9 @@ int main(int argc, char* argv[])
 
     // Check Key Length
     int argKeyLength = strlen(argv[2]);
-    if (argKeyLength > KEY_CHAR_SIZE) {
-        std::cout << "Error: key length to large! Key must be " << KEY_SIZE << "!" << std::endl;
+    if (argKeyLength > KEY_SIZE_BITS_256) {
+        std::cout << "Error: key length to large! Key must be ";
+        std::cout << KEY_SIZE_BITS_256 << "-bits or less!" << std::endl;
         return 1;
     }
 
@@ -64,26 +62,44 @@ int main(int argc, char* argv[])
     // =               ***   IMPORTANT PART   ***               =
     // ==========================================================
     
-    // 128-Bit Key
-    unsigned char KEY[KEY_CHAR_SIZE] = {
+    // 256-Bit Key Buffer
+    unsigned char key[KEY_SIZE_BYTES_256] = {
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00
     };
 
-    // Copy key (will be padded with 0 if < 128-Bits)
+    // Copy key (will automatically be padded with 0 if < 256-bits)
     for (int i = 0; i < argKeyLength; ++i)
-        KEY[i] = argv[2][i];
+        key[i] = argv[2][i];
 
-    // Debug Print
-    std::cout << "\nKey:\t";
-    aes::print2DBuffer(KEY, KEY_CHAR_SIZE, 16);
+
+    // TODO: Add 3rd parameter to specify key size
+    // Size of key in words: KEY_SIZE_BYTES / 32
+    std::size_t keyWordSize = KEY_SIZE_WORDS_128;
+    if (argKeyLength > KEY_SIZE_BYTES_128) {
+        if (argKeyLength > KEY_SIZE_BYTES_192)
+            keyWordSize = KEY_SIZE_WORDS_256;
+        else
+            keyWordSize = KEY_SIZE_WORDS_192;
+    }
+
+    // Print key info
+    std::cout << "\nKey Size (Bits): \t" << keyWordSize * 32 << std::endl;
+    std::cout << "Key Size (Words): \t" << keyWordSize << std::endl;
+
+    std::cout << "\nKey:\n";
+    aes::printBufferRowMajorOrder(key, keyWordSize * 4, 16); // keyWordSize * 4 = KEY_SIZE_BYTES
     std::cout << std::endl;
 
     // Encrypt fin data and write it to fout
-    uint32_t* KEY_WORDS = reinterpret_cast<uint32_t*>(KEY);
-    aes::encryptFileAES(fin, fout, KEY_WORDS, KEY_WORD_SIZE);
+    uint32_t* keyWords = reinterpret_cast<uint32_t*>(key);
+    aes::encryptFileAES(fin, fout, keyWords, keyWordSize);
 
     // ==========================================================
     // =                                                        =
@@ -99,25 +115,28 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-bool testKnown()
+
+// Test function to check if 
+// 128-bit encryption is working
+bool testKnown128()
 {
-    static const unsigned char KNOWN_KEY[KEY_CHAR_SIZE] = {
+    // 128-bit example key
+    static const unsigned char KNOWN_KEY[KEY_SIZE_BYTES_128] = {
         0x54, 0x68, 0x61, 0x74,
         0x73, 0x20, 0x6D, 0x79,
         0x20, 0x4B, 0x75, 0x6E,
         0x67, 0x20, 0x46, 0x75
     };
 
-    const int KNOWN_KEY_WORDS_SIZE = KEY_SIZE / (sizeof(uint32_t) * 8);
-    const uint32_t* KNOWN_KEY_WORDS = reinterpret_cast<const uint32_t*>(KNOWN_KEY);
-
-    static const unsigned char EXPECTED_ENCRYPTION[KEY_CHAR_SIZE] = {
+    // Expected data after encrypting dataBuffer
+    static const unsigned char EXPECTED_ENCRYPTION[KEY_SIZE_BYTES_128] = {
         0x29, 0xC3, 0x50, 0x5F,
         0x57, 0x14, 0x20, 0xF6,
         0x40, 0x22, 0x99, 0xB3,
         0x1A, 0x02, 0xD7, 0x3A
     };
 
+    // 128-bits of example data
     std::vector<unsigned char> dataBuffer = {
         0x54, 0x77, 0x6F, 0x20,
         0x4F, 0x6E, 0x65, 0x20,
@@ -125,30 +144,48 @@ bool testKnown()
         0x20, 0x54, 0x77, 0x6F
     };
 
+    // Cast KNOWN_KEY into array of 32-bit elements
+    const uint32_t* KNOWN_KEY_WORDS = reinterpret_cast<const uint32_t*>(KNOWN_KEY);
+
+    // Allocate buffer for round keys
+    // Number of 32-bit key words after expansion
+    // equals 4 * (Nr + 1) according to FIPS 197
     uint32_t roundWords[11 * 4] = { 0 };
-    aes::expandKeys(roundWords, 10, KNOWN_KEY_WORDS, KNOWN_KEY_WORDS_SIZE);
 
+    // Generate keys for each round
+    aes::expandKey(roundWords, 10, KNOWN_KEY_WORDS, KEY_SIZE_WORDS_128);
+
+    // Print Key
     std::cout << "\nKey: \n";
-    aes::print2DBuffer(KNOWN_KEY, KEY_CHAR_SIZE, 16);
+    aes::printBufferRowMajorOrder(KNOWN_KEY, KEY_SIZE_BYTES_128, 16);
 
+    // Print dataBuffer before encryption
     std::cout << "\nOriginal Data: \n";
-    aes::print2DBuffer(dataBuffer.data(), dataBuffer.size(), 16);
+    aes::printBufferRowMajorOrder(dataBuffer.data(), dataBuffer.size(), 16);
 
+    // Print expected encryption data
     std::cout << "\nExpected Encryption: \n";
-    aes::print2DBuffer(EXPECTED_ENCRYPTION, KEY_CHAR_SIZE, 16);
+    aes::printBufferRowMajorOrder(EXPECTED_ENCRYPTION, KEY_SIZE_BYTES_128, 16);
 
-    aes::encryptBlockAES(dataBuffer, roundWords, 10, KNOWN_KEY_WORDS, KNOWN_KEY_WORDS_SIZE);
 
+    // AES Encryption
+    // 10 rounds using 128-bit key
+    aes::encryptBlockAES(dataBuffer, roundWords, 10, KNOWN_KEY_WORDS, KEY_SIZE_WORDS_128);
+
+    // Print dataBuffer after it's encrypted
     std::cout << "\nEncrypted Data: \n";
-    aes::print2DBuffer(dataBuffer.data(), dataBuffer.size(), 16);
-    
+    aes::printBufferRowMajorOrder(dataBuffer.data(), dataBuffer.size(), 16);
+
+    // Check if encrypted dataBuffer and expected encryption data match
     bool matched = true;
-    for (int i = 0; i < KEY_CHAR_SIZE; ++i) {
+    for (int i = 0; i < KEY_SIZE_BYTES_128; ++i) {
         if (dataBuffer[i] != EXPECTED_ENCRYPTION[i]) {
             matched = false;
             break;
         }
     }
+
+    // Print match results
     std::cout << "\nExpected Encryption and Actual Encryption Match: " << (matched ? "true" : "false") << std::endl;
 
     return matched;

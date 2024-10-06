@@ -5,15 +5,38 @@
 #include <cassert>
 
 
-void aes::encryptFileAES(std::ifstream & inFile, std::ofstream & outFile, uint32_t* key, int keyWordSize)
+bool aes::encryptFileAES(std::ifstream & inFile, std::ofstream & outFile, uint32_t* key, std::size_t keyWordSize)
 {
+    assert(inFile.is_open() && outFile.is_open());
+
+    // Number of rounds, based on key size
+    std::size_t numRounds = 0;
+    switch (keyWordSize) {
+    case KEY_SIZE_WORDS_128:
+        numRounds = NUM_ROUNDS_128;
+        break;
+    case KEY_SIZE_WORDS_192:
+        numRounds = NUM_ROUNDS_192;
+        break;
+    case KEY_SIZE_WORDS_256:
+        numRounds = NUM_ROUNDS_256;
+        break;
+    default:
+        return false;
+    }
+
+    // Allocate buffer for round keys
+    // Number of 32-bit key words after expansion
+    // equals 4 * (Nr + 1) according to FIPS 197
+    std::vector<uint32_t> expandedKey = std::vector<uint32_t>((numRounds + 1) * 4, 0);
+
+    // Generate keys for each round
+    expandKey(expandedKey.data(), numRounds, key, keyWordSize);
+
+    // Allocate buffer for reading/writing 128-bit blocks
     std::vector<unsigned char> buffer = std::vector<unsigned char>(AES_BLOCK_SIZE, 0);
 
-    // Generate keys for each round (ASSUMES 128-Bit KEY!!!!)
-    // TODO: Make flexible based on key size
-    uint32_t roundWords[11 * 4] = { 0 };
-    expandKeys(roundWords, 10, key, keyWordSize);
-
+    // While there is more data to read
     while (!inFile.eof()) {
         // Read block
         inFile.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
@@ -31,18 +54,23 @@ void aes::encryptFileAES(std::ifstream & inFile, std::ofstream & outFile, uint32
 
             // Debug Print
             std::cout << "Padded Last Block: \n";
-            print2DBuffer(buffer.data(), buffer.size(), AES_BLOCK_ROWS);
+            printBufferColMajorOrder(buffer.data(), buffer.size(), AES_BLOCK_COLS);
         }
 
-        // AES Encryption. 10 rounds using 128-bit key.
-        encryptBlockAES(buffer, roundWords, 10, key, keyWordSize);
+        // AES Encryption
+        // 10 rounds using 128-bit key
+        // 12 rounds using 192-bit key
+        // 14 rounds using 256-bit key
+        encryptBlockAES(buffer, expandedKey.data(), numRounds, key, keyWordSize);
 
         // Write encrypted data to new file.
         outFile.write(reinterpret_cast<char*>(buffer.data()), buffer.size());
     }
+
+    return true;
 }
 
-void aes::encryptBlockAES(std::vector<unsigned char>& buffer, uint32_t* roundWords, const int numRounds, const uint32_t* const key, const int keySizeWords)
+void aes::encryptBlockAES(std::vector<unsigned char>& buffer, uint32_t* expandedKeys, const std::size_t numRounds, const uint32_t* const key, const std::size_t keySizeWords)
 {
     static const int ROUND_KEY_SIZE = 16;
 
@@ -50,7 +78,7 @@ void aes::encryptBlockAES(std::vector<unsigned char>& buffer, uint32_t* roundWor
     assert(buffer.size() == ROUND_KEY_SIZE);
 
     // Pointer we use to walk roundWords array in 32-bit steps
-    uint32_t* roundKey = roundWords;
+    uint32_t* roundKey = expandedKeys;
 
     // Initial Xor: Xor the buffer with the current round key 
     aes::xorByteArray(buffer.data(), reinterpret_cast<unsigned char*>(roundKey), ROUND_KEY_SIZE);
@@ -92,7 +120,7 @@ void aes::encryptBlockAES(std::vector<unsigned char>& buffer, uint32_t* roundWor
     xorByteArray(buffer.data(), reinterpret_cast<unsigned char*>(roundKey), ROUND_KEY_SIZE);
 }
 
-void aes::expandKeys(uint32_t* const& roundWords, int numRounds, const uint32_t* const& key, int keySize)
+void aes::expandKey(uint32_t* const& expandedKeys, const std::size_t numRounds, const uint32_t* const& key, std::size_t keySize)
 {
     // RCON Constant Matrix
     const static unsigned char RCON[10][4] = {
@@ -108,13 +136,13 @@ void aes::expandKeys(uint32_t* const& roundWords, int numRounds, const uint32_t*
         {0x36, 0x00, 0x00, 0x00}
     };
 
-    // Round Key = 128-Bits
+    // Round Key = 128-Bits Always
     // Word = 32-Bit Partial Round Key
     // 
     // Initialize First Round Key, w[0] - w[3] on FIPS 197
-    int i = 0;
+    std::size_t i = 0;
     for (; i < keySize; i++)
-        roundWords[i] = key[i];
+        expandedKeys[i] = key[i];
 
     // Calculate the number of words needed to 
     // have a round key for each round (numRounds)
@@ -122,13 +150,13 @@ void aes::expandKeys(uint32_t* const& roundWords, int numRounds, const uint32_t*
 
     // Generate Words 
     for (; i < numWords; ++i) {
-        uint32_t temp = roundWords[i - 1];
+        uint32_t temp = expandedKeys[i - 1];
 
         // If the current word is the first word of a round key
         if (i % keySize == 0) {
 
             // Rotate word left
-            rotateWordsLeft(temp, 1);
+            rotateWordLeft(temp, 1);
 
             // S-Box Substitute word
             sBoxSubstitution(reinterpret_cast<unsigned char*>(&temp), 4);
@@ -146,11 +174,11 @@ void aes::expandKeys(uint32_t* const& roundWords, int numRounds, const uint32_t*
         // * 4th previous word (128-Bit)
         // * 6th previous word (192-Bit)
         // * 8th previous word (256-Bit)
-        roundWords[i] = roundWords[i - keySize] ^ temp;
+        expandedKeys[i] = expandedKeys[i - keySize] ^ temp;
     }
 }
 
-void aes::rotateWordsLeft(uint32_t& words, const int shiftAmount)
+void aes::rotateWordLeft(uint32_t& words, const std::size_t shiftAmount)
 {
     int shift = shiftAmount % sizeof(uint32_t);
     if (shift == 0)
@@ -161,7 +189,7 @@ void aes::rotateWordsLeft(uint32_t& words, const int shiftAmount)
     words = shiftedRight | shiftedLeft;
 }
 
-void aes::xorByteArray(unsigned char* buffer, unsigned char* key, int keySizeBytes)
+void aes::xorByteArray(unsigned char* buffer, unsigned char* key, std::size_t keySizeBytes)
 {
     assert(keySizeBytes % sizeof(uint64_t) == 0);
 
@@ -174,7 +202,8 @@ void aes::xorByteArray(unsigned char* buffer, unsigned char* key, int keySizeByt
     }
 }
 
-unsigned char aes::galoisMultiplyBy2(unsigned char value) {
+unsigned char aes::galoisMultiplyBy2(unsigned char value) 
+{
     unsigned char result = value << 1;
     if (value & 0x80) { // If the most significant bit is set (overflow)
         result ^= 0x1b; // XOR with the AES irreducible polynomial
@@ -182,7 +211,7 @@ unsigned char aes::galoisMultiplyBy2(unsigned char value) {
     return result;
 }
 
-std::vector<unsigned char> aes::mixColumns(std::vector<unsigned char>& buffer, const int rowCount)
+std::vector<unsigned char> aes::mixColumns(std::vector<unsigned char>& buffer, const std::size_t rowCount)
 {
     static const unsigned char COL_MIXER[AES_BLOCK_COLS][AES_BLOCK_ROWS] = {
         {0x02, 0x03, 0x01, 0x01},
@@ -195,11 +224,11 @@ std::vector<unsigned char> aes::mixColumns(std::vector<unsigned char>& buffer, c
 
     std::vector<unsigned char> mixed = std::vector<unsigned char>(AES_BLOCK_SIZE, 0);
     int colCount = buffer.size() / rowCount;
-    for (int col = 0; col < colCount; ++col) {
+    for (std::size_t col = 0; col < colCount; ++col) {
 
-        for (int mixerRow = 0; mixerRow < AES_BLOCK_ROWS; ++mixerRow) {
+        for (std::size_t mixerRow = 0; mixerRow < AES_BLOCK_ROWS; ++mixerRow) {
             unsigned char mixedValue = 0;  // Temporary value to accumulate results
-            for (int mixerCol = 0; mixerCol < AES_BLOCK_COLS; ++mixerCol) {
+            for (std::size_t mixerCol = 0; mixerCol < AES_BLOCK_COLS; ++mixerCol) {
                 unsigned char temp = 0;
                 unsigned char value = buffer[col * rowCount + mixerCol];
                 switch (COL_MIXER[mixerRow][mixerCol]) {
@@ -226,42 +255,42 @@ std::vector<unsigned char> aes::mixColumns(std::vector<unsigned char>& buffer, c
     return mixed;
 }
 
-void aes::shiftCols(uint32_t* const& buffer, const int rowCount)
+void aes::shiftCols(uint32_t* const& buffer, const std::size_t rowCount)
 {
     for (int row = 1; row < rowCount; ++row) {
-        rotateWordsLeft(*(buffer + row), row);
+        rotateWordLeft(*(buffer + row), row);
     }
 }
 
-void aes::shiftRows(std::vector<unsigned char>& buffer, const int rowCount)
+void aes::shiftRows(std::vector<unsigned char>& buffer, const std::size_t rowCount)
 {
     assert(buffer.size() % rowCount == 0);
 
-    int colCount = buffer.size() / rowCount;
-    for (int row = 1; row < rowCount; ++row) {
-        int shift = row;
+    std::size_t colCount = buffer.size() / rowCount;
+    for (std::size_t row = 1; row < rowCount; ++row) {
+        std::size_t shift = row;
 
         // Max of 3 temps with 4x4 blocks
         std::vector<unsigned char> temps = std::vector<unsigned char>(AES_BLOCK_COLS - 1, 0);
 
         // Copy Temp Values
-        for (int col = 0; col < shift; ++col)
+        for (std::size_t col = 0; col < shift; ++col)
             temps.at(col) = buffer.at(col * rowCount + row);
 
 
-        int shiftEnd = colCount - shift;
+        std::size_t shiftEnd = colCount - shift;
 
         // Shift old values left
-        for (int col = 0; col < shiftEnd; ++col)
+        for (std::size_t col = 0; col < shiftEnd; ++col)
             buffer.at(col * rowCount + row) = buffer.at((col + shift) * rowCount + row);
 
         // Copy temp values to the back of the array
-        for (int col = shiftEnd; col < colCount; ++col)
+        for (std::size_t col = shiftEnd; col < colCount; ++col)
             buffer.at(col * rowCount + row) = temps.at(col - shiftEnd);
     }
 }
 
-void aes::sBoxSubstitution(unsigned char* const& buffer, const int bufferSize)
+void aes::sBoxSubstitution(unsigned char* const& buffer, const std::size_t bufferSize)
 {
     static const unsigned char sBox[AES_BLOCK_SIZE][AES_BLOCK_SIZE] = {
         {0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76} ,
@@ -282,7 +311,7 @@ void aes::sBoxSubstitution(unsigned char* const& buffer, const int bufferSize)
         {0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16},
     };
 
-    for (int i = 0; i < bufferSize; ++i) {
+    for (std::size_t i = 0; i < bufferSize; ++i) {
         // Least Significant Nibble
         int lsn = buffer[i] & 0x0F;
 
@@ -294,13 +323,26 @@ void aes::sBoxSubstitution(unsigned char* const& buffer, const int bufferSize)
 }
 
 
-void aes::print2DBuffer(const unsigned char* const& buffer, const int size, const int colCount)
+void aes::printBufferRowMajorOrder(const unsigned char* const& buffer, const std::size_t size, const std::size_t colCount)
+{
+    assert(size % colCount == 0);
+
+    std::size_t rowCount = size / colCount;
+    for (std::size_t row = 0; row < rowCount; ++row) {
+        for (std::size_t col = 0; col < colCount; ++col) {
+            std::cout << std::hex << std::bitset<8>(buffer[row * colCount + col]).to_ulong() << "\t";
+        }
+        std::cout << std::endl;
+    }
+}
+
+void aes::printBufferColMajorOrder(const unsigned char* const& buffer, const std::size_t size, const std::size_t colCount)
 {
     assert(size % colCount == 0);
 
     int rowCount = size / colCount;
-    for (int col = 0; col < rowCount; ++col) {
-        for (int row = 0; row < colCount; ++row) {
+    for (int row = 0; row < rowCount; ++row) {
+        for (int col = 0; col < colCount; ++col) {
             std::cout << std::hex << std::bitset<8>(buffer[col * rowCount + row]).to_ulong() << "\t";
         }
         std::cout << std::endl;
