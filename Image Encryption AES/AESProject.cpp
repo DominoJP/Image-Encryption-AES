@@ -148,6 +148,7 @@ void encryptBlock(std::vector<unsigned char> &buffer, uint32_t* roundWords, cons
     roundKey += 4; // 4 * 32-bit words = 16 bytes = 128 bits
     xorByteArray(buffer.data(), reinterpret_cast<unsigned char*>(roundKey), 16);
 }
+
 void expandKeys(uint32_t* const& roundWords, int numRounds, const uint32_t* const& key, int keySize)
 {
     int i = 0;
@@ -160,7 +161,7 @@ void expandKeys(uint32_t* const& roundWords, int numRounds, const uint32_t* cons
         if (i % keySize == 0) {
             rotateWordsLeft(temp, 1);
             sBoxSubstitution(reinterpret_cast<unsigned char*>(&temp), 4);
-            temp = temp ^ *reinterpret_cast<uint32_t*>(RCON[i / keySize - 1]);
+            temp = temp ^ *reinterpret_cast<uint32_t*>(&RCON[i / keySize - 1]);
         }
         else if (keySize > 6 && i % keySize == 4) {
             sBoxSubstitution(reinterpret_cast<unsigned char*>(&temp), 4);
@@ -208,7 +209,7 @@ std::vector<unsigned char> mixColumns(std::vector<unsigned char>& buffer, const 
         {0x01, 0x02, 0x03, 0x01},
         {0x01, 0x01, 0x02, 0x03},
         {0x03, 0x01, 0x01, 0x02},
-    };
+    }; 
 
     assert(buffer.size() % rowCount == 0);
 
