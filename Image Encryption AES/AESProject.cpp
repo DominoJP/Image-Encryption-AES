@@ -72,11 +72,9 @@ int main(int argc, char* argv[])
         0x00, 0x00, 0x00, 0x00
     };
 
-    // Copy key and pad it if necessary
+    // Copy key (will be padded with 0 if < 128-Bits)
     for (int i = 0; i < argKeyLength; ++i)
         KEY[i] = argv[2][i];
-    for (int i = argKeyLength; i < KEY_CHAR_SIZE; ++i)
-        KEY[i] = 0;
 
     // Debug Print
     std::cout << "\nKey:\t";
