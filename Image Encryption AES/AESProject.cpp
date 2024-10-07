@@ -3,6 +3,8 @@
 // TODO: Allow for 192/256-bit keys
 
 #include <iostream>
+#include <winsock2.h>
+#include <windows.h>
 #include "AESFunctions.h"
 
 #define BUFFER_SIZE AES_BLOCK_SIZE

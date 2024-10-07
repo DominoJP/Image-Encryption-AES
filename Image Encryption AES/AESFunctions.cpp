@@ -10,20 +10,7 @@ bool aes::encryptFileAES(std::ifstream & inFile, std::ofstream & outFile, uint32
     assert(inFile.is_open() && outFile.is_open());
 
     // Number of rounds, based on key size
-    std::size_t numRounds = 0;
-    switch (keyWordSize) {
-    case KEY_SIZE_WORDS_128:
-        numRounds = NUM_ROUNDS_128;
-        break;
-    case KEY_SIZE_WORDS_192:
-        numRounds = NUM_ROUNDS_192;
-        break;
-    case KEY_SIZE_WORDS_256:
-        numRounds = NUM_ROUNDS_256;
-        break;
-    default:
-        return false;
-    }
+    std::size_t numRounds = getNumbRounds(keyWordSize);
 
     // Allocate buffer for round keys
     // Number of 32-bit key words after expansion
@@ -36,21 +23,20 @@ bool aes::encryptFileAES(std::ifstream & inFile, std::ofstream & outFile, uint32
     // Allocate buffer for reading/writing 128-bit blocks
     std::vector<unsigned char> buffer = std::vector<unsigned char>(AES_BLOCK_SIZE, 0);
 
+    // Size of data read into buffer
+    std::streamsize dataSize = 0;
+
     // While there is more data to read
     while (!inFile.eof()) {
         // Read block
         inFile.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
 
         // Get size of data read
-        std::streamsize s = inFile.gcount();
+        dataSize = inFile.gcount();
 
         // If the block is less than 128-bits pad it.
-        // Scheme: ISO/IEC 7816-4
-        // Should probably go with PKCS#7 padding but lazy
-        if (s < AES_BLOCK_SIZE) {
-            buffer[s] = 0x80;
-            for (++s; s < buffer.size(); ++s)
-                buffer[s] = 0x00;
+        if (dataSize < AES_BLOCK_SIZE) {
+            aes::padPKCS7(buffer.data(), buffer.size(), dataSize);
 
             // Debug Print
             std::cout << "Padded Last Block: \n";
@@ -61,6 +47,19 @@ bool aes::encryptFileAES(std::ifstream & inFile, std::ofstream & outFile, uint32
         // 10 rounds using 128-bit key
         // 12 rounds using 192-bit key
         // 14 rounds using 256-bit key
+        encryptBlockAES(buffer, expandedKey.data(), numRounds, key, keyWordSize);
+
+        // Write encrypted data to new file.
+        outFile.write(reinterpret_cast<char*>(buffer.data()), buffer.size());
+    }
+
+    // If the entire file was divisible 
+    // by 128-bits then add one extra
+    // padded block per PKCS7 standard
+    if (dataSize == AES_BLOCK_SIZE) {
+        aes::padPKCS7(buffer.data(), buffer.size(), 0);
+
+        // AES Encryption
         encryptBlockAES(buffer, expandedKey.data(), numRounds, key, keyWordSize);
 
         // Write encrypted data to new file.
@@ -175,6 +174,28 @@ void aes::expandKey(uint32_t* const& expandedKeys, const std::size_t numRounds, 
         // * 6th previous word (192-Bit)
         // * 8th previous word (256-Bit)
         expandedKeys[i] = expandedKeys[i - keySize] ^ temp;
+    }
+}
+
+void aes::padPKCS7(unsigned char* const& buffer, std::size_t bufferSize, std::size_t startPos)
+{
+    unsigned char padByte = bufferSize - startPos;
+    for (int i = startPos; i < bufferSize; ++i)
+        buffer[i] = padByte;
+}
+
+std::size_t aes::getNumbRounds(std::size_t keySizeWords)
+{
+    switch (keySizeWords) {
+        case KEY_SIZE_WORDS_128:
+            return NUM_ROUNDS_128;
+        case KEY_SIZE_WORDS_192:
+            return NUM_ROUNDS_192;
+        case KEY_SIZE_WORDS_256:
+            return NUM_ROUNDS_256;
+            break;
+        default:
+            return 0;
     }
 }
 

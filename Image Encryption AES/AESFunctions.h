@@ -32,6 +32,10 @@ namespace aes
 
 	void expandKey(uint32_t* const& expandedKeys, const std::size_t numRounds, const uint32_t* const& key, std::size_t keySize);
 
+	void padPKCS7(unsigned char* const& buffer, std::size_t bufferSize, std::size_t startPos);
+
+	std::size_t getNumbRounds(std::size_t keySizeWords);
+
 	void rotateWordLeft(uint32_t& words, const std::size_t shiftAmount);
 
 	void xorByteArray(unsigned char* buffer, unsigned char* key, std::size_t keySizeBytes);
