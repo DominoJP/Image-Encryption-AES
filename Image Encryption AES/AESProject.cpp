@@ -99,7 +99,8 @@ int main(int argc, char* argv[])
 
     // Encrypt fin data and write it to fout
     uint32_t* keyWords = reinterpret_cast<uint32_t*>(key);
-    aes::encryptFileAES(fin, fout, keyWords, keyWordSize);
+    aes::encryptFileAES_seq(fin, fout, keyWords, keyWordSize);
+    aes::encryptFileAES_parallel(fin, fout, keyWords, keyWordSize);
 
     // ==========================================================
     // =                                                        =
