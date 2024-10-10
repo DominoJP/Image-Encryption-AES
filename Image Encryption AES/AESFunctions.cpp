@@ -123,7 +123,7 @@ bool aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile,
         encryptBlockAES(buffer, expandedKey.data(), numRounds, key, keyWordSize);
 
         // Write encrypted data to output buffer in the correct position
-        #pragma omp critical
+        //#pragma omp critical
         std::copy(buffer.begin(), buffer.end(), outputBuffer.begin() + position);
     }
 

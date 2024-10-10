@@ -9,7 +9,8 @@
 
 
 // Encrypted File Extension
-const std::string EXT_STR = ".enc";
+const std::string EXT_STR_seq = "_seq.enc";
+const std::string EXT_STR_par = "_par.enc";
 
 // Function Declarations
 bool testKnown128();
@@ -38,19 +39,22 @@ int main(int argc, char* argv[])
     }
 
     // Output file name: argv[1] + EXT_STR
-    std::string encFile = argv[1] + EXT_STR;
+    std::string encFile_seq = argv[1] + EXT_STR_seq;
+    std::string encFile_par = argv[1] + EXT_STR_par;
 
-    // Create output file
-    std::ofstream fout(encFile, std::ofstream::binary | std::ofstream::out | std::ofstream::trunc);
-    if (!fout.is_open()) {
-        std::cout << "Error: could not open file \"" << encFile << "\" for write." << std::endl;
+    // Create sequential output file
+    std::ofstream fout_seq(encFile_seq, std::ofstream::binary | std::ofstream::out | std::ofstream::trunc);
+    if (!fout_seq.is_open()) {
+        std::cout << "Error: could not open file \"" << encFile_seq << "\" for write." << std::endl;
         return 1;
     }
+    
 
     // Print File Info
     std::cout << "Read File: " << argv[1] << std::endl;
 
-    std::cout << "Write File: " << encFile << std::endl;
+    std::cout << "Sequential Write File: " << encFile_seq << std::endl;
+    std::cout << "Parallel Write File: " << encFile_par << std::endl;
 
     fin.seekg(0, fin.end);
     int length = fin.tellg();
@@ -99,8 +103,22 @@ int main(int argc, char* argv[])
 
     // Encrypt fin data and write it to fout
     uint32_t* keyWords = reinterpret_cast<uint32_t*>(key);
-    aes::encryptFileAES_seq(fin, fout, keyWords, keyWordSize);
-    aes::encryptFileAES_parallel(fin, fout, keyWords, keyWordSize);
+    aes::encryptFileAES_seq(fin, fout_seq, keyWords, keyWordSize);
+    fout_seq.close();
+    
+    //reset the input file stream
+    fin.clear();
+    fin.seekg(0, std::ios::beg);
+    
+    // create parallel output file
+    std::ofstream fout_par(encFile_par, std::ofstream::binary | std::ofstream::out | std::ofstream::trunc);
+    if (!fout_par.is_open()) {
+        std::cout << "Error: could not open file \"" << encFile_par << "\" for write." << std::endl;
+        return 1;
+    }
+
+
+    aes::encryptFileAES_parallel(fin, fout_par, keyWords, keyWordSize);
 
     // ==========================================================
     // =                                                        =
@@ -108,7 +126,7 @@ int main(int argc, char* argv[])
 
     // Done and close.
     fin.close();
-    fout.close();
+    fout_par.close();
 
     // Run Encrpytion Test 
     //testKnown(); // TODO: remove
