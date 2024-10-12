@@ -38,6 +38,32 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    // Get the size of the file
+    fin.seekg(0, std::ifstream::end);
+    std::size_t fileSize = fin.tellg();
+    fin.seekg(0, std::ifstream::beg);
+
+    // Calculate buffer size
+    std::size_t numBlocks = (fileSize + AES_BLOCK_SIZE - 1) / AES_BLOCK_SIZE; // This calculation ensures that bufferSize is always a multiple of the block size, with enough memory to handle an extra block of padding if needed.
+    std::size_t bufferSize = numBlocks * AES_BLOCK_SIZE;
+
+    // Create input and output buffers of the calculated size
+    unsigned char* inputBuffer = new unsigned char[bufferSize];
+    unsigned char* outputBuffer = new unsigned char[bufferSize];
+    std::memset(inputBuffer, 0, bufferSize);  // Initialize input buffer to zero
+    std::memset(outputBuffer, 0, bufferSize); // Initialize output buffer to zero
+
+    // Read the entire file into the buffer
+    fin.read(reinterpret_cast<char*>(inputBuffer), fileSize);
+    std::size_t dataSize = fin.gcount();
+
+    // Pad the last block if needed (PKCS#7 padding)
+    if (dataSize % AES_BLOCK_SIZE != 0) {
+        aes::padPKCS7(inputBuffer, bufferSize, dataSize);
+    }
+
+
+
     // Output file name: argv[1] + EXT_STR
     std::string encFile_seq = argv[1] + EXT_STR_seq;
     std::string encFile_par = argv[1] + EXT_STR_par;
@@ -110,20 +136,30 @@ int main(int argc, char* argv[])
     fin.clear();
     fin.seekg(0, std::ios::beg);
     
+    
+
+
+    aes::encryptFileAES_parallel(inputBuffer, outputBuffer, bufferSize, keyWords, keyWordSize);
+
+    // ==========================================================
+    // =                                                        =
+    // ==========================================================
+    
     // create parallel output file
     std::ofstream fout_par(encFile_par, std::ofstream::binary | std::ofstream::out | std::ofstream::trunc);
     if (!fout_par.is_open()) {
         std::cout << "Error: could not open file \"" << encFile_par << "\" for write." << std::endl;
         return 1;
     }
+    // Write output buffer to file
+    fout_par.write(reinterpret_cast<char*>(outputBuffer), bufferSize);
 
-
-    aes::encryptFileAES_parallel(fin, fout_par, keyWords, keyWordSize);
-
-    // ==========================================================
-    // =                                                        =
-    // ==========================================================
-
+    // Clean up the dynamically allocated memory
+    delete[] inputBuffer;
+    //delete[] outputBuffer;//gets an error here: HEAP CORRUPTION DETECTED: 
+                            //after Normal Block (#185). 
+                            // CRT detected that the application wrote 
+                            // to memory after end of heap buffer
     // Done and close.
     fin.close();
     fout_par.close();
