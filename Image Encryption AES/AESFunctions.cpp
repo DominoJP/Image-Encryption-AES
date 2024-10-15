@@ -1,11 +1,13 @@
 #include "AESFunctions.h"
 
+#include <omp.h>
+
 #include <iostream>
 #include <bitset>
 #include <cassert>
 
 
-bool aes::encryptFileAES(std::ifstream & inFile, std::ofstream & outFile, uint32_t* key, std::size_t keyWordSize)
+bool aes::encryptFileAES_seq(std::ifstream & inFile, std::ofstream & outFile, uint32_t* key, std::size_t keyWordSize)
 {
     assert(inFile.is_open() && outFile.is_open());
 
@@ -27,6 +29,7 @@ bool aes::encryptFileAES(std::ifstream & inFile, std::ofstream & outFile, uint32
     std::streamsize dataSize = 0;
 
     // While there is more data to read
+    double start = omp_get_wtime();
     while (!inFile.eof()) {
         // Read block
         inFile.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
@@ -65,6 +68,75 @@ bool aes::encryptFileAES(std::ifstream & inFile, std::ofstream & outFile, uint32
         // Write encrypted data to new file.
         outFile.write(reinterpret_cast<char*>(buffer.data()), buffer.size());
     }
+
+    double end = omp_get_wtime();
+
+    std::cout << "Sequential Encryption took: " << (end - start) << " seconds." << std::endl;
+
+    return true;
+}
+
+bool aes::encryptFileAES_parallel(unsigned char* inputBuffer, unsigned char* outputBuffer, std::size_t bufferSize, uint32_t* key, std::size_t keyWordSize)
+{
+    //assert(inFile.is_open() && outFile.is_open());
+
+    // Number of rounds, based on key size
+    std::size_t numRounds = getNumbRounds(keyWordSize);
+
+    // Allocate buffer for round keys
+    std::vector<uint32_t> expandedKey = std::vector<uint32_t>((numRounds + 1) * 4, 0);
+
+    // Generate keys for each round
+    expandKey(expandedKey.data(), numRounds, key, keyWordSize);
+
+    std::size_t numBlocks = bufferSize / AES_BLOCK_SIZE;
+
+    if (numBlocks % AES_BLOCK_SIZE != 0)
+    {
+        numBlocks += 1;
+    }
+
+    //// Allocate output buffer
+    //std::vector<unsigned char> outputBuffer(fileSize + AES_BLOCK_SIZE);
+
+    // Start timing the encryption
+    double start = omp_get_wtime();
+
+    // Parallelize the encryption of each block
+    #pragma omp parallel for
+    for (std::size_t i = 0; i < numBlocks; ++i) {
+        std::vector<unsigned char> block(AES_BLOCK_SIZE, 0);
+
+        // Copy data from input buffer to block
+        std::memcpy(block.data(), inputBuffer + (i * AES_BLOCK_SIZE), AES_BLOCK_SIZE);
+
+        //// Move to the correct position in the file
+        //std::streampos position = i * AES_BLOCK_SIZE;
+        //inFile.seekg(position, std::ios::beg);
+        //inFile.read(reinterpret_cast<char*>(block.data()), AES_BLOCK_SIZE);
+        //std::streamsize dataSize = inFile.gcount();
+
+        //// If the block is less than 128-bits pad it padding is already done in main
+        //if (dataSize < AES_BLOCK_SIZE) {
+        //    aes::padPKCS7(block.data(), block.size(), dataSize);
+        //}
+
+        // Make space for the padding in extra slot of buffer
+
+        // Encrypt the block
+        encryptBlockAES(block, expandedKey.data(), numRounds, key, keyWordSize);
+
+        // Write encrypted data to output buffer in the correct position
+        //#pragma omp critical
+        // Copy encrypted block to output buffer
+        std::memcpy(outputBuffer + (i * AES_BLOCK_SIZE), block.data(), AES_BLOCK_SIZE);
+        /*std::copy(block.begin(), block.end(), outputBuffer.begin() + position);*/
+
+    }
+
+    // Stop timing the encryption
+    double end = omp_get_wtime();
+    std::cout << "Parallel Encryption took: " << (end - start) << " seconds." << std::endl;
 
     return true;
 }
