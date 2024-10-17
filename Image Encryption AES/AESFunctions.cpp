@@ -7,8 +7,10 @@
 #include <cassert>
 
 
-bool aes::encryptFileAES_seq(std::ifstream & inFile, std::ofstream & outFile, uint32_t* key, std::size_t keyWordSize)
+bool aes::encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize)
 {
+    static constexpr int CHUNK_SIZE = AES_BLOCK_SIZE * 2000;
+
     assert(inFile.is_open() && outFile.is_open());
 
     // Number of rounds, based on key size
@@ -23,13 +25,89 @@ bool aes::encryptFileAES_seq(std::ifstream & inFile, std::ofstream & outFile, ui
     expandKey(expandedKey.data(), numRounds, key, keyWordSize);
 
     // Allocate buffer for reading/writing 128-bit blocks
-    std::vector<unsigned char> buffer = std::vector<unsigned char>(AES_BLOCK_SIZE, 0);
+    std::vector<unsigned char> buffer = std::vector<unsigned char>(CHUNK_SIZE, 0);
 
     // Size of data read into buffer
     std::streamsize dataSize = 0;
 
+    inFile.seekg(0, inFile.end);
+    const std::streamsize fileSize = inFile.tellg();
+    inFile.seekg(0, inFile.beg);
+
     // While there is more data to read
-    double start = omp_get_wtime();
+    while (!inFile.eof()) {
+        // Read chunk
+        inFile.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
+
+        // Get size of chunk read
+        dataSize = inFile.gcount();
+
+        // If the last aes block is less than 128-bits pad it.
+        if (dataSize % AES_BLOCK_SIZE != 0) {
+            const std::streampos endOfLastBlock = dataSize - dataSize % AES_BLOCK_SIZE;
+            const std::streampos sizeOfLastBlock = dataSize % AES_BLOCK_SIZE;
+            aes::padPKCS7(buffer.data() + endOfLastBlock, AES_BLOCK_SIZE, sizeOfLastBlock);
+            dataSize += AES_BLOCK_SIZE - sizeOfLastBlock;
+
+            // Debug Print
+            std::cout << "Padded Last Block: \n";
+            printBufferColMajorOrder(buffer.data() + endOfLastBlock, AES_BLOCK_SIZE, AES_BLOCK_COLS);
+        }
+
+        assert(dataSize % AES_BLOCK_SIZE == 0);
+        const int numBlocks = dataSize / AES_BLOCK_SIZE;
+        for (int i = 0; i < numBlocks; ++i) {
+            encryptBlockAES(buffer.data() + (std::size_t(i) * AES_BLOCK_SIZE), expandedKey.data(), numRounds, key, keyWordSize);
+        }
+
+        // Write encrypted data to new file.
+        outFile.write(reinterpret_cast<char*>(buffer.data()), dataSize);
+    }
+
+    // If the entire file was divisible 
+    // by 128-bits then add one extra
+    // padded block per PKCS7 standard
+    if (fileSize % AES_BLOCK_SIZE == 0) {
+        aes::padPKCS7(buffer.data(), AES_BLOCK_SIZE, 0);
+
+        // AES Encryption
+        encryptBlockAES(buffer.data(), expandedKey.data(), numRounds, key, keyWordSize);
+
+        // Write encrypted data to new file.
+        outFile.write(reinterpret_cast<char*>(buffer.data()), AES_BLOCK_SIZE);
+    }
+
+    return true;
+}
+
+bool aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize)
+{
+    const int CHUNK_SIZE = AES_BLOCK_SIZE * 2000; //finalFileSize;
+
+    assert(inFile.is_open() && outFile.is_open());
+
+    // Number of rounds, based on key size
+    std::size_t numRounds = getNumbRounds(keyWordSize);
+
+    // Allocate buffer for round keys
+    // Number of 32-bit key words after expansion
+    // equals 4 * (Nr + 1) according to FIPS 197
+    std::vector<uint32_t> expandedKey = std::vector<uint32_t>((numRounds + 1) * 4, 0);
+
+    // Generate keys for each round
+    expandKey(expandedKey.data(), numRounds, key, keyWordSize);
+
+    // Allocate buffer for reading/writing 128-bit blocks
+    std::vector<unsigned char> buffer = std::vector<unsigned char>(CHUNK_SIZE, 0);
+
+    // Size of data read into buffer
+    std::streamsize dataSize = 0;
+
+    inFile.seekg(0, inFile.end);
+    const std::streamsize fileSize = inFile.tellg();
+    inFile.seekg(0, inFile.beg);
+
+    // While there is more data to read
     while (!inFile.eof()) {
         // Read block
         inFile.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
@@ -37,158 +115,95 @@ bool aes::encryptFileAES_seq(std::ifstream & inFile, std::ofstream & outFile, ui
         // Get size of data read
         dataSize = inFile.gcount();
 
-        // If the block is less than 128-bits pad it.
-        if (dataSize < AES_BLOCK_SIZE) {
-            aes::padPKCS7(buffer.data(), buffer.size(), dataSize);
+        // If the last block is less than 128-bits pad it.
+        if (dataSize % AES_BLOCK_SIZE != 0) {
+            const std::streampos endOfLastBlock = dataSize - dataSize % AES_BLOCK_SIZE;
+            const std::streampos sizeOfLastBlock = dataSize % AES_BLOCK_SIZE;
+            aes::padPKCS7(buffer.data() + endOfLastBlock, AES_BLOCK_SIZE, sizeOfLastBlock);
+            dataSize += AES_BLOCK_SIZE - sizeOfLastBlock;
 
             // Debug Print
             std::cout << "Padded Last Block: \n";
-            printBufferColMajorOrder(buffer.data(), buffer.size(), AES_BLOCK_COLS);
+            printBufferColMajorOrder(buffer.data() + endOfLastBlock, AES_BLOCK_SIZE, AES_BLOCK_COLS);
         }
 
-        // AES Encryption
-        // 10 rounds using 128-bit key
-        // 12 rounds using 192-bit key
-        // 14 rounds using 256-bit key
-        encryptBlockAES(buffer, expandedKey.data(), numRounds, key, keyWordSize);
+        assert(dataSize % AES_BLOCK_SIZE == 0);
+
+        const int numBlocks = dataSize / AES_BLOCK_SIZE;
+
+#       pragma omp parallel for
+        for (int i = 0; i < numBlocks; ++i) {
+            encryptBlockAES(buffer.data() + (std::size_t(i) * AES_BLOCK_SIZE), expandedKey.data(), numRounds, key, keyWordSize);
+        }
 
         // Write encrypted data to new file.
-        outFile.write(reinterpret_cast<char*>(buffer.data()), buffer.size());
+        outFile.write(reinterpret_cast<char*>(buffer.data()), dataSize);
     }
 
     // If the entire file was divisible 
     // by 128-bits then add one extra
     // padded block per PKCS7 standard
-    if (dataSize == AES_BLOCK_SIZE) {
-        aes::padPKCS7(buffer.data(), buffer.size(), 0);
+    if (fileSize % AES_BLOCK_SIZE == 0) {
+        aes::padPKCS7(buffer.data(), AES_BLOCK_SIZE, 0);
 
         // AES Encryption
-        encryptBlockAES(buffer, expandedKey.data(), numRounds, key, keyWordSize);
+        encryptBlockAES(buffer.data(), expandedKey.data(), numRounds, key, keyWordSize);
 
         // Write encrypted data to new file.
-        outFile.write(reinterpret_cast<char*>(buffer.data()), buffer.size());
+        outFile.write(reinterpret_cast<char*>(buffer.data()), AES_BLOCK_SIZE);
     }
-
-    double end = omp_get_wtime();
-
-    std::cout << "Sequential Encryption took: " << (end - start) << " seconds." << std::endl;
 
     return true;
 }
 
-bool aes::encryptFileAES_parallel(unsigned char* inputBuffer, unsigned char* outputBuffer, std::size_t bufferSize, uint32_t* key, std::size_t keyWordSize)
-{
-    //assert(inFile.is_open() && outFile.is_open());
-
-    // Number of rounds, based on key size
-    std::size_t numRounds = getNumbRounds(keyWordSize);
-
-    // Allocate buffer for round keys
-    std::vector<uint32_t> expandedKey = std::vector<uint32_t>((numRounds + 1) * 4, 0);
-
-    // Generate keys for each round
-    expandKey(expandedKey.data(), numRounds, key, keyWordSize);
-
-    std::size_t numBlocks = bufferSize / AES_BLOCK_SIZE;
-
-    if (numBlocks % AES_BLOCK_SIZE != 0)
-    {
-        numBlocks += 1;
-    }
-
-    //// Allocate output buffer
-    //std::vector<unsigned char> outputBuffer(fileSize + AES_BLOCK_SIZE);
-
-    // Start timing the encryption
-    double start = omp_get_wtime();
-
-    // Parallelize the encryption of each block
-    #pragma omp parallel for
-    for (std::size_t i = 0; i < numBlocks; ++i) {
-        std::vector<unsigned char> block(AES_BLOCK_SIZE, 0);
-
-        // Copy data from input buffer to block
-        std::memcpy(block.data(), inputBuffer + (i * AES_BLOCK_SIZE), AES_BLOCK_SIZE);
-
-        //// Move to the correct position in the file
-        //std::streampos position = i * AES_BLOCK_SIZE;
-        //inFile.seekg(position, std::ios::beg);
-        //inFile.read(reinterpret_cast<char*>(block.data()), AES_BLOCK_SIZE);
-        //std::streamsize dataSize = inFile.gcount();
-
-        //// If the block is less than 128-bits pad it padding is already done in main
-        //if (dataSize < AES_BLOCK_SIZE) {
-        //    aes::padPKCS7(block.data(), block.size(), dataSize);
-        //}
-
-        // Make space for the padding in extra slot of buffer
-
-        // Encrypt the block
-        encryptBlockAES(block, expandedKey.data(), numRounds, key, keyWordSize);
-
-        // Write encrypted data to output buffer in the correct position
-        //#pragma omp critical
-        // Copy encrypted block to output buffer
-        std::memcpy(outputBuffer + (i * AES_BLOCK_SIZE), block.data(), AES_BLOCK_SIZE);
-        /*std::copy(block.begin(), block.end(), outputBuffer.begin() + position);*/
-
-    }
-
-    // Stop timing the encryption
-    double end = omp_get_wtime();
-    std::cout << "Parallel Encryption took: " << (end - start) << " seconds." << std::endl;
-
-    return true;
-}
-
-void aes::encryptBlockAES(std::vector<unsigned char>& buffer, uint32_t* expandedKeys, const std::size_t numRounds, const uint32_t* const key, const std::size_t keySizeWords)
+void aes::encryptBlockAES(unsigned char* buffer, uint32_t* expandedKeys, const std::size_t numRounds, const uint32_t* const key, const std::size_t keySizeWords)
 {
     static const int ROUND_KEY_SIZE = 16;
 
     // Ensure buffer size is 16 bytes (128 bits)
-    assert(buffer.size() == ROUND_KEY_SIZE);
+    //assert(buffer.size() == ROUND_KEY_SIZE);
 
     // Pointer we use to walk roundWords array in 32-bit steps
     uint32_t* roundKey = expandedKeys;
 
     // Initial Xor: Xor the buffer with the current round key 
-    aes::xorByteArray(buffer.data(), reinterpret_cast<unsigned char*>(roundKey), ROUND_KEY_SIZE);
+    aes::xorByteArray(buffer, reinterpret_cast<unsigned char*>(roundKey), ROUND_KEY_SIZE);
 
     // Do Rounds 1 through  N-1.
     // N-1 because the last round skips the mixColumns step
     for (int r = 0; r < numRounds - 1; ++r) {
 
         // S-Box Substitution
-        sBoxSubstitution(buffer.data(), buffer.size());
+        sBoxSubstitution(buffer, AES_BLOCK_SIZE);
 
         // Shift Rows
-        shiftRows(buffer, AES_BLOCK_ROWS);
+        shiftRows(buffer, AES_BLOCK_SIZE, AES_BLOCK_ROWS);
 
         // Mix Columns
-        buffer = mixColumns(buffer, AES_BLOCK_ROWS);
+        mixColumns(buffer, AES_BLOCK_SIZE, AES_BLOCK_ROWS);
 
         // Increment to current roundKey
         // Must add 4 because each round key is 128 bits
         roundKey += 4; // 4 * 32-bit words = 16 bytes = 128 bits
 
         // Xor the buffer with the current round key
-        xorByteArray(buffer.data(), reinterpret_cast<unsigned char*>(roundKey), ROUND_KEY_SIZE);
+        xorByteArray(buffer, reinterpret_cast<unsigned char*>(roundKey), ROUND_KEY_SIZE);
     }
 
     // Do Last Round
 
     // S-Box Substitution
-    sBoxSubstitution(buffer.data(), buffer.size());
+    sBoxSubstitution(buffer, AES_BLOCK_SIZE);
 
     // Shift Rows
-    shiftRows(buffer, AES_BLOCK_ROWS);
+    shiftRows(buffer, AES_BLOCK_SIZE, AES_BLOCK_ROWS);
 
     // Increment to current roundKey
     // Must add 4 because each round key is 128 bits
     roundKey += 4; // 4 * 32-bit words = 16 bytes = 128 bits
 
     // Xor the buffer with the current round key
-    xorByteArray(buffer.data(), reinterpret_cast<unsigned char*>(roundKey), ROUND_KEY_SIZE);
+    xorByteArray(buffer, reinterpret_cast<unsigned char*>(roundKey), ROUND_KEY_SIZE);
 }
 
 void aes::expandKey(uint32_t* const& expandedKeys, const std::size_t numRounds, const uint32_t* const& key, std::size_t keySize)
@@ -304,7 +319,7 @@ unsigned char aes::galoisMultiplyBy2(unsigned char value)
     return result;
 }
 
-std::vector<unsigned char> aes::mixColumns(std::vector<unsigned char>& buffer, const std::size_t rowCount)
+void aes::mixColumns(unsigned char* buffer, const std::size_t size, const std::size_t rowCount)
 {
     static const unsigned char COL_MIXER[AES_BLOCK_COLS][AES_BLOCK_ROWS] = {
         {0x02, 0x03, 0x01, 0x01},
@@ -313,10 +328,10 @@ std::vector<unsigned char> aes::mixColumns(std::vector<unsigned char>& buffer, c
         {0x03, 0x01, 0x01, 0x02},
     };
 
-    assert(buffer.size() % rowCount == 0);
+    assert(size % rowCount == 0);
 
     std::vector<unsigned char> mixed = std::vector<unsigned char>(AES_BLOCK_SIZE, 0);
-    int colCount = buffer.size() / rowCount;
+    int colCount = size / rowCount;
     for (std::size_t col = 0; col < colCount; ++col) {
 
         for (std::size_t mixerRow = 0; mixerRow < AES_BLOCK_ROWS; ++mixerRow) {
@@ -336,7 +351,7 @@ std::vector<unsigned char> aes::mixColumns(std::vector<unsigned char>& buffer, c
                     break;
                 default:
                     std::cout << "Error: Invalid Constant Array!" << std::endl;
-                    return std::vector<unsigned char>();
+                    return;
                 }
                 mixedValue ^= temp;
             }
@@ -345,7 +360,7 @@ std::vector<unsigned char> aes::mixColumns(std::vector<unsigned char>& buffer, c
 
     }
 
-    return mixed;
+    std::copy(mixed.begin(), mixed.end(), buffer);
 }
 
 void aes::shiftCols(uint32_t* const& buffer, const std::size_t rowCount)
@@ -355,11 +370,11 @@ void aes::shiftCols(uint32_t* const& buffer, const std::size_t rowCount)
     }
 }
 
-void aes::shiftRows(std::vector<unsigned char>& buffer, const std::size_t rowCount)
+void aes::shiftRows(unsigned char* buffer, const std::size_t size, const std::size_t rowCount)
 {
-    assert(buffer.size() % rowCount == 0);
+    assert(size % rowCount == 0);
 
-    std::size_t colCount = buffer.size() / rowCount;
+    std::size_t colCount = size / rowCount;
     for (std::size_t row = 1; row < rowCount; ++row) {
         std::size_t shift = row;
 
@@ -368,18 +383,18 @@ void aes::shiftRows(std::vector<unsigned char>& buffer, const std::size_t rowCou
 
         // Copy Temp Values
         for (std::size_t col = 0; col < shift; ++col)
-            temps.at(col) = buffer.at(col * rowCount + row);
+            temps.at(col) = buffer[col * rowCount + row];
 
 
         std::size_t shiftEnd = colCount - shift;
 
         // Shift old values left
         for (std::size_t col = 0; col < shiftEnd; ++col)
-            buffer.at(col * rowCount + row) = buffer.at((col + shift) * rowCount + row);
+            buffer[col * rowCount + row] = buffer[(col + shift) * rowCount + row];
 
         // Copy temp values to the back of the array
         for (std::size_t col = shiftEnd; col < colCount; ++col)
-            buffer.at(col * rowCount + row) = temps.at(col - shiftEnd);
+            buffer[col * rowCount + row] = temps.at(col - shiftEnd);
     }
 }
 
@@ -440,4 +455,25 @@ void aes::printBufferColMajorOrder(const unsigned char* const& buffer, const std
         }
         std::cout << std::endl;
     }
+}
+
+bool aes::compareFiles(const std::string& path1, const std::string& path2)
+{
+    std::ifstream f1(path1, std::ifstream::binary | std::ifstream::ate);
+    std::ifstream f2(path2, std::ifstream::binary | std::ifstream::ate);
+
+    if (f1.fail() || f2.fail()) {
+        return false; //file problem
+    }
+
+    if (f1.tellg() != f2.tellg()) {
+        return false; //size mismatch
+    }
+
+    //seek back to beginning and use std::equal to compare contents
+    f1.seekg(0, std::ifstream::beg);
+    f2.seekg(0, std::ifstream::beg);
+    return std::equal(std::istreambuf_iterator<char>(f1.rdbuf()),
+        std::istreambuf_iterator<char>(),
+        std::istreambuf_iterator<char>(f2.rdbuf()));
 }

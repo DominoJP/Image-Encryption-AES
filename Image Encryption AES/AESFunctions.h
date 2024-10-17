@@ -27,9 +27,9 @@ namespace aes
 	// AES Function Declarations
 
 	bool encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize);
-	bool encryptFileAES_parallel(unsigned char* inputBuffer, unsigned char* outputBuffer, std::size_t bufferSize, uint32_t* key, std::size_t keyWordSize);
+	bool encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize);
 
-	void encryptBlockAES(std::vector<unsigned char>& buffer, uint32_t* expandedKeys, const std::size_t numRounds, const uint32_t* const key, const std::size_t keySizeWords);
+	void encryptBlockAES(unsigned char* buffer, uint32_t* expandedKeys, const std::size_t numRounds, const uint32_t* const key, const std::size_t keySizeWords);
 
 	void expandKey(uint32_t* const& expandedKeys, const std::size_t numRounds, const uint32_t* const& key, std::size_t keySize);
 
@@ -42,16 +42,18 @@ namespace aes
 	void xorByteArray(unsigned char* buffer, unsigned char* key, std::size_t keySizeBytes);
 
 	unsigned char galoisMultiplyBy2(unsigned char value);	
-	
-	std::vector<unsigned char> mixColumns(std::vector<unsigned char>& buffer, const std::size_t rowCount);
+
+	void mixColumns(unsigned char* buffer, const std::size_t size, const std::size_t rowCount);
+
+	void shiftRows(unsigned char* buffer, const std::size_t size, const std::size_t rowCount);
 
 	void shiftCols(uint32_t* const& buffer, const std::size_t rowCount);
-
-	void shiftRows(std::vector<unsigned char>& buffer, const std::size_t rowCount);
 
 	void sBoxSubstitution(unsigned char* const& buffer, const std::size_t bufferSize);
 
 	void printBufferRowMajorOrder(const unsigned char* const& buffer, const std::size_t size, const std::size_t colCount);
 
 	void printBufferColMajorOrder(const unsigned char* const& buffer, const std::size_t size, const std::size_t colCount);
+
+	bool compareFiles(const std::string& path1, const std::string& path2);
 }
