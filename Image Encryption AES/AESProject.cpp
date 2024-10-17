@@ -15,8 +15,17 @@ const std::string EXT_STR_par = "_par.enc";
 // Function Declarations
 bool testKnown128();
 
+
+/****************
+* Main function
+* 
+* Expects two additional arguments:
+* _ 
+* _ 
+*****************/
 int main(int argc, char* argv[])
 {
+    /*** VALIDATE ARGUMENTS ***/
     // Check number of args
     if (argc != 3) {
         std::cout << "Error: incorrect number of arguments! Found " << argc << "." << std::endl;
@@ -25,7 +34,7 @@ int main(int argc, char* argv[])
 
     // Check Key Length
     int argKeyLength = strlen(argv[2]);
-    if (argKeyLength > KEY_SIZE_BITS_256) {
+    if (argKeyLength > KEY_SIZE_BYTES_256) {
         std::cout << "Error: key length to large! Key must be ";
         std::cout << KEY_SIZE_BITS_256 << "-bits or less!" << std::endl;
         return 1;
@@ -38,6 +47,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    /*** PREPARE OUTPUT ***/
     // Output file name: argv[1] + EXT_STR
     std::string encFile_seq = argv[1] + EXT_STR_seq;
     std::string encFile_par = argv[1] + EXT_STR_par;
@@ -66,10 +76,7 @@ int main(int argc, char* argv[])
     fin.seekg(0, fin.beg);
     std::cout << "\nFile Length: \t" << length << " bytes\n";
 
-
-    // ==========================================================
-    // =               ***   IMPORTANT PART   ***               =
-    // ==========================================================
+    /*** DATA ENCRYPTION SECTION ***/
     
     // 256-Bit Key Buffer
     unsigned char key[KEY_SIZE_BYTES_256] = {
@@ -108,19 +115,19 @@ int main(int argc, char* argv[])
 
     // Encrypt fin data and write it to fout
     uint32_t* keyWords = reinterpret_cast<uint32_t*>(key);
+
+    // Run sequential encryption
     aes::encryptFileAES_seq(fin, fout_seq, keyWords, keyWordSize);
     
     //reset the input file stream
     fin.clear();
     fin.seekg(0, std::ios::beg);
-    
-    
+
+    // Run parallel encryption
     aes::encryptFileAES_parallel(fin, fout_par, keyWords, keyWordSize);
 
-    // ==========================================================
-    // =                                                        =
-    // ==========================================================
-    // 
+    /*** End data encryption section ***/
+
     // Done and close.
     fin.close();
     fout_seq.close();
