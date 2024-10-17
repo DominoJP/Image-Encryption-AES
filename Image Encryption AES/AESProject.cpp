@@ -15,8 +15,17 @@ const std::string EXT_STR_par = "_par.enc";
 // Function Declarations
 bool testKnown128();
 
+
+/****************
+* Main function
+* 
+* Expects two additional arguments:
+* _ 
+* _ 
+*****************/
 int main(int argc, char* argv[])
 {
+    /*** VALIDATE ARGUMENTS ***/
     // Check number of args
     if (argc != 3) {
         std::cout << "Error: incorrect number of arguments! Found " << argc << "." << std::endl;
@@ -25,7 +34,7 @@ int main(int argc, char* argv[])
 
     // Check Key Length
     int argKeyLength = strlen(argv[2]);
-    if (argKeyLength > KEY_SIZE_BITS_256) {
+    if (argKeyLength > KEY_SIZE_BYTES_256) {
         std::cout << "Error: key length to large! Key must be ";
         std::cout << KEY_SIZE_BITS_256 << "-bits or less!" << std::endl;
         return 1;
@@ -38,6 +47,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    /*** READ INPUT FILES ***/
     // Get the size of the file
     fin.seekg(0, std::ifstream::end);
     std::size_t fileSize = fin.tellg();
@@ -62,8 +72,7 @@ int main(int argc, char* argv[])
         aes::padPKCS7(inputBuffer, bufferSize, dataSize);
     }
 
-
-
+    /*** PREPARE OUTPUT ***/
     // Output file name: argv[1] + EXT_STR
     std::string encFile_seq = argv[1] + EXT_STR_seq;
     std::string encFile_par = argv[1] + EXT_STR_par;
@@ -74,7 +83,6 @@ int main(int argc, char* argv[])
         std::cout << "Error: could not open file \"" << encFile_seq << "\" for write." << std::endl;
         return 1;
     }
-    
 
     // Print File Info
     std::cout << "Read File: " << argv[1] << std::endl;
@@ -89,7 +97,7 @@ int main(int argc, char* argv[])
 
 
     // ==========================================================
-    // =               ***   IMPORTANT PART   ***               =
+    // =         ***   ENCRYPT DATA (sequential)  ***           =
     // ==========================================================
     
     // 256-Bit Key Buffer
@@ -135,16 +143,14 @@ int main(int argc, char* argv[])
     //reset the input file stream
     fin.clear();
     fin.seekg(0, std::ios::beg);
-    
-    
 
 
+    // ==========================================================
+    // =          ***   ENCRYPT DATA (parallel)  ***            =
+    // ==========================================================
+    
     aes::encryptFileAES_parallel(inputBuffer, outputBuffer, bufferSize, keyWords, keyWordSize);
 
-    // ==========================================================
-    // =                                                        =
-    // ==========================================================
-    
     // create parallel output file
     std::ofstream fout_par(encFile_par, std::ofstream::binary | std::ofstream::out | std::ofstream::trunc);
     if (!fout_par.is_open()) {
