@@ -33,7 +33,7 @@ int main(int argc, char* argv[])
     }
 
     // Check Key Length
-    int argKeyLength = strlen(argv[2]);
+    size_t argKeyLength = strlen(argv[2]);
     if (argKeyLength > KEY_SIZE_BYTES_256) {
         std::cout << "Error: key length to large! Key must be ";
         std::cout << KEY_SIZE_BITS_256 << "-bits or less!" << std::endl;
@@ -72,7 +72,7 @@ int main(int argc, char* argv[])
     std::cout << "Parallel Write File: " << encFile_par << std::endl;
 
     fin.seekg(0, fin.end);
-    int length = fin.tellg();
+    std::streamoff length = fin.tellg();
     fin.seekg(0, fin.beg);
     std::cout << "\nFile Length: \t" << length << " bytes\n";
 
