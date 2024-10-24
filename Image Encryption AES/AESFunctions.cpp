@@ -45,7 +45,7 @@ bool aes::encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint
         // If the last aes block is less than 128-bits pad it.
         if (dataSize % AES_BLOCK_SIZE != 0) {
             const std::streampos endOfLastBlock = dataSize - dataSize % AES_BLOCK_SIZE;
-            const std::streampos sizeOfLastBlock = dataSize % AES_BLOCK_SIZE;
+            const unsigned int sizeOfLastBlock = dataSize % AES_BLOCK_SIZE;
             aes::padPKCS7(buffer.data() + endOfLastBlock, AES_BLOCK_SIZE, sizeOfLastBlock);
             dataSize += AES_BLOCK_SIZE - sizeOfLastBlock;
 
@@ -55,7 +55,7 @@ bool aes::encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint
         }
 
         assert(dataSize % AES_BLOCK_SIZE == 0);
-        const int numBlocks = dataSize / AES_BLOCK_SIZE;
+        const long long numBlocks = dataSize / AES_BLOCK_SIZE;
         for (int i = 0; i < numBlocks; ++i) {
             encryptBlockAES(buffer.data() + (std::size_t(i) * AES_BLOCK_SIZE), expandedKey.data(), numRounds, key, keyWordSize);
         }
@@ -118,7 +118,7 @@ bool aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile,
         // If the last block is less than 128-bits pad it.
         if (dataSize % AES_BLOCK_SIZE != 0) {
             const std::streampos endOfLastBlock = dataSize - dataSize % AES_BLOCK_SIZE;
-            const std::streampos sizeOfLastBlock = dataSize % AES_BLOCK_SIZE;
+            const unsigned int sizeOfLastBlock = dataSize % AES_BLOCK_SIZE;
             aes::padPKCS7(buffer.data() + endOfLastBlock, AES_BLOCK_SIZE, sizeOfLastBlock);
             dataSize += AES_BLOCK_SIZE - sizeOfLastBlock;
 
@@ -129,7 +129,7 @@ bool aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile,
 
         assert(dataSize % AES_BLOCK_SIZE == 0);
 
-        const int numBlocks = dataSize / AES_BLOCK_SIZE;
+        const long long numBlocks = dataSize / AES_BLOCK_SIZE;
 
 #       pragma omp parallel for
         for (int i = 0; i < numBlocks; ++i) {
@@ -232,7 +232,7 @@ void aes::expandKey(uint32_t* const& expandedKeys, const std::size_t numRounds, 
 
     // Calculate the number of words needed to 
     // have a round key for each round (numRounds)
-    int numWords = (numRounds + 1) * 4;
+    const std::size_t numWords = (numRounds + 1) * 4;
 
     // Generate Words 
     for (; i < numWords; ++i) {
@@ -264,10 +264,10 @@ void aes::expandKey(uint32_t* const& expandedKeys, const std::size_t numRounds, 
     }
 }
 
-void aes::padPKCS7(unsigned char* const& buffer, std::size_t bufferSize, std::size_t startPos)
+void aes::padPKCS7(unsigned char* const& buffer, const std::size_t bufferSize, const unsigned int startPos)
 {
-    unsigned char padByte = bufferSize - startPos;
-    for (int i = startPos; i < bufferSize; ++i)
+    unsigned char padByte = static_cast<unsigned char> (bufferSize - startPos);
+    for (std::size_t i = startPos; i < bufferSize; ++i)
         buffer[i] = padByte;
 }
 
@@ -331,7 +331,7 @@ void aes::mixColumns(unsigned char* buffer, const std::size_t size, const std::s
     assert(size % rowCount == 0);
 
     std::vector<unsigned char> mixed = std::vector<unsigned char>(AES_BLOCK_SIZE, 0);
-    int colCount = size / rowCount;
+    const std::size_t colCount = size / rowCount;
     for (std::size_t col = 0; col < colCount; ++col) {
 
         for (std::size_t mixerRow = 0; mixerRow < AES_BLOCK_ROWS; ++mixerRow) {
@@ -384,7 +384,6 @@ void aes::shiftRows(unsigned char* buffer, const std::size_t size, const std::si
         // Copy Temp Values
         for (std::size_t col = 0; col < shift; ++col)
             temps.at(col) = buffer[col * rowCount + row];
-
 
         std::size_t shiftEnd = colCount - shift;
 
@@ -444,13 +443,13 @@ void aes::printBufferRowMajorOrder(const unsigned char* const& buffer, const std
     }
 }
 
-void aes::printBufferColMajorOrder(const unsigned char* const& buffer, const std::size_t size, const std::size_t colCount)
+void aes::printBufferColMajorOrder(const unsigned char* const& buffer, const std::size_t size, const unsigned int colCount)
 {
     assert(size % colCount == 0);
 
-    int rowCount = size / colCount;
-    for (int row = 0; row < rowCount; ++row) {
-        for (int col = 0; col < colCount; ++col) {
+    std::size_t rowCount = size / colCount;
+    for (std::size_t row = 0; row < rowCount; ++row) {
+        for (unsigned int col = 0; col < colCount; ++col) {
             std::cout << std::hex << std::bitset<8>(buffer[col * rowCount + row]).to_ulong() << "\t";
         }
         std::cout << std::endl;

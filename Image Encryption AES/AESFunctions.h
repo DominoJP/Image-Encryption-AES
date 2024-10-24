@@ -3,24 +3,24 @@
 #include <vector>
 #include <fstream>
 
-#define AES_BLOCK_SIZE 16
-#define AES_BLOCK_COLS 4
-#define AES_BLOCK_ROWS 4
+constexpr auto AES_BLOCK_SIZE = 16;
+constexpr auto AES_BLOCK_COLS = 4;
+constexpr auto AES_BLOCK_ROWS = 4;
 
-#define NUM_ROUNDS_128 10
-#define KEY_SIZE_BITS_128 128
-#define KEY_SIZE_BYTES_128 KEY_SIZE_BITS_128 / (sizeof(unsigned char) * 8)
-#define KEY_SIZE_WORDS_128 KEY_SIZE_BITS_128 / (sizeof(uint32_t) * 8)
+constexpr auto NUM_ROUNDS_128 = 10;
+constexpr auto KEY_SIZE_BITS_128 = 128;
+constexpr auto KEY_SIZE_BYTES_128 = KEY_SIZE_BITS_128 / (sizeof(unsigned char) * 8);
+constexpr auto KEY_SIZE_WORDS_128 = KEY_SIZE_BITS_128 / (sizeof(uint32_t) * 8);
 
-#define NUM_ROUNDS_192 12
-#define KEY_SIZE_BITS_192 192
-#define KEY_SIZE_BYTES_192 KEY_SIZE_BITS_192 / (sizeof(unsigned char) * 8)
-#define KEY_SIZE_WORDS_192 KEY_SIZE_BITS_192 / (sizeof(uint32_t) * 8)
+constexpr auto NUM_ROUNDS_192 = 12;
+constexpr auto KEY_SIZE_BITS_192 = 192;
+constexpr auto KEY_SIZE_BYTES_192 = KEY_SIZE_BITS_192 / (sizeof(unsigned char) * 8);
+constexpr auto KEY_SIZE_WORDS_192 = KEY_SIZE_BITS_192 / (sizeof(uint32_t) * 8);
 
-#define NUM_ROUNDS_256 14
-#define KEY_SIZE_BITS_256 256
-#define KEY_SIZE_BYTES_256 KEY_SIZE_BITS_256 / (sizeof(unsigned char) * 8)
-#define KEY_SIZE_WORDS_256 KEY_SIZE_BITS_256 / (sizeof(uint32_t) * 8)
+constexpr auto NUM_ROUNDS_256 = 14;
+constexpr auto KEY_SIZE_BITS_256 = 256;
+constexpr auto KEY_SIZE_BYTES_256 = KEY_SIZE_BITS_256 / (sizeof(unsigned char) * 8);
+constexpr auto KEY_SIZE_WORDS_256 = KEY_SIZE_BITS_256 / (sizeof(uint32_t) * 8);
 
 namespace aes 
 {
@@ -33,7 +33,7 @@ namespace aes
 
 	void expandKey(uint32_t* const& expandedKeys, const std::size_t numRounds, const uint32_t* const& key, std::size_t keySize);
 
-	void padPKCS7(unsigned char* const& buffer, std::size_t bufferSize, std::size_t startPos);
+	void padPKCS7(unsigned char* const& buffer, const std::size_t bufferSize, const unsigned int startPos);
 
 	std::size_t getNumbRounds(std::size_t keySizeWords);
 
@@ -53,7 +53,7 @@ namespace aes
 
 	void printBufferRowMajorOrder(const unsigned char* const& buffer, const std::size_t size, const std::size_t colCount);
 
-	void printBufferColMajorOrder(const unsigned char* const& buffer, const std::size_t size, const std::size_t colCount);
+	void printBufferColMajorOrder(const unsigned char* const& buffer, const std::size_t size, const unsigned int colCount);
 
 	bool compareFiles(const std::string& path1, const std::string& path2);
 }
