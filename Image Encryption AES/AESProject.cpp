@@ -3,6 +3,7 @@
 // TODO: Allow for 192/256-bit keys
 
 #include <iostream>
+#include <algorithm>
 #include "AESFunctions.h"
 
 #define BUFFER_SIZE AES_BLOCK_SIZE
@@ -14,30 +15,100 @@ const std::string EXT_STR_par = "_par.enc";
 
 // Function Declarations
 bool testKnown128();
+void printHelpMsg(void);
+
+
+/**
+* Prints the CLI usage text to the terminal.
+*/
+void printHelpMsg(void)
+{
+    const char* help_msg = R"heredoc(
+    Usage:
+        $ & 'Image Encryption AES.exe' <inputFile> <key> [-sp]
+
+    Arguments:
+        inputFile:  path to file that needs encrypting.  Output file will be
+                    named <inputFile>_(seq|par).enc
+        key:        a string of characters, enabling different encryption
+                    modes:
+                      1 - 16 chars:  AES 128-bit mode.
+                      17 - 24 chars: AES 192-bit mode.
+                      25 - 32 chars: AES 256-bit mode.
+    Optional flags:
+        - s         Run encryption in sequential mode only.
+        - p         Run encryption in parallel mode only.
+        (no flag)   Run encryption in both modes.
+    )heredoc";
+
+    std::cout << help_msg << std::endl;
+}
 
 
 /****************
 * Main function
-* 
-* Expects two additional arguments:
-* _ 
-* _ 
 *****************/
 int main(int argc, char* argv[])
 {
+    /*** CONFIG VARIABLES ***/
+    // Depending on the command line arguments given, this program may run in a variety of configurations.
+    // Declare them here and set their default values.
+    bool optionSequential = true;
+    bool optionParallel = true;
+
     /*** VALIDATE ARGUMENTS ***/
+    // Minor improvements maintain backward compatibility with major version number.
+    // Increment version number when breaking backward compatibility.
+    // 
+    // CLI v0.0:
+    // First argument is a filename
+    // Second argument is a key
+    // 
+    // CLI v0.1:
+    // First argument is a filename
+    // Second argumetn is a key
+    // Optional 3rd argument stars with a '-' and contains flags which have no arguments:
+    // -s run in series only, or
+    // -p run in parallel only
+    // (default): run both series and parallel
+    // 
+    // TODO: Future ideas:
+    // -q quiet mode
+    // -t measure time
+    // (default) verbose mode, time not measured
+
     // Check number of args
-    if (argc != 3) {
-        std::cout << "Error: incorrect number of arguments! Found " << argc << "." << std::endl;
+    if ((argc < 3) || (argc > 4)) {
+        printHelpMsg();
         return 1;
     }
 
     // Check Key Length
     size_t argKeyLength = strlen(argv[2]);
     if (argKeyLength > KEY_SIZE_BYTES_256) {
-        std::cout << "Error: key length to large! Key must be ";
-        std::cout << KEY_SIZE_BITS_256 << "-bits or less!" << std::endl;
+        std::cout << "Error: key length too large! Key must be ";
+        std::cout << KEY_SIZE_BYTES_256 << " characters or less!" << std::endl;
         return 1;
+    }
+
+    // Check for additional options
+    if( argc > 3 )
+    {
+        // TODO: add loop(s) to find other options.  For now we're just naively checking for -s or -p
+        if( (strlen(argv[3]) < 2) || ('-' != argv[3][0]) )
+        {
+            printHelpMsg();
+            return 1;
+        }
+
+        if( 's' == argv[3][1] )
+        {
+            optionParallel = false;
+        }
+        if( 'p' == argv[3][1] )
+        {
+            optionSequential = false;
+        }
     }
 
     // Open Input File argv[1]
@@ -46,38 +117,42 @@ int main(int argc, char* argv[])
         std::cout << "Error: could not open file \"" << argv[1] << "\" for read." << std::endl;
         return 1;
     }
-
-    /*** PREPARE OUTPUT ***/
-    // Output file name: argv[1] + EXT_STR
-    std::string encFile_seq = argv[1] + EXT_STR_seq;
-    std::string encFile_par = argv[1] + EXT_STR_par;
-
-    // Create sequential output file
-    std::ofstream fout_seq(encFile_seq, std::ofstream::binary | std::ofstream::out | std::ofstream::trunc);
-    if (!fout_seq.is_open()) {
-        std::cout << "Error: could not open file \"" << encFile_seq << "\" for write." << std::endl;
-        return 1;
-    }
-
-    std::ofstream fout_par(encFile_par, std::ofstream::binary | std::ofstream::out | std::ofstream::trunc);
-    if (!fout_par.is_open()) {
-        std::cout << "Error: could not open file \"" << encFile_par << "\" for write." << std::endl;
-        return 1;
-    }
-
-    // Print File Info
     std::cout << "Read File: " << argv[1] << std::endl;
 
-    std::cout << "Sequential Write File: " << encFile_seq << std::endl;
-    std::cout << "Parallel Write File: " << encFile_par << std::endl;
+    /*** PREPARE OUTPUT ***/
+    std::string encFile_seq = argv[1] + EXT_STR_seq;
+    std::ofstream fout_seq(encFile_seq, std::ofstream::binary | std::ofstream::out | std::ofstream::trunc);
+
+    std::string encFile_par = argv[1] + EXT_STR_par;
+    std::ofstream fout_par(encFile_par, std::ofstream::binary | std::ofstream::out | std::ofstream::trunc);
+
+    // Create sequential output file
+    if( optionSequential )
+    {
+        if (!fout_seq.is_open()) {
+            std::cout << "Error: could not open file \"" << encFile_seq << "\" for write." << std::endl;
+            return 1;
+        }
+        std::cout << "Sequential Write File: " << encFile_seq << std::endl;
+    }
+
+    // Create parallel output file
+    if( optionParallel )
+    {
+        if (!fout_par.is_open()) {
+            std::cout << "Error: could not open file \"" << encFile_par << "\" for write." << std::endl;
+            return 1;
+        }
+        std::cout << "Parallel Write File: " << encFile_par << std::endl;
+    }
 
     fin.seekg(0, fin.end);
-    std::streamoff length = fin.tellg();
+    const std::streamoff length = fin.tellg();
     fin.seekg(0, fin.beg);
     std::cout << "\nFile Length: \t" << length << " bytes\n";
 
     /*** DATA ENCRYPTION SECTION ***/
-    
+
     // 256-Bit Key Buffer
     unsigned char key[KEY_SIZE_BYTES_256] = {
         0x00, 0x00, 0x00, 0x00,
@@ -93,7 +168,6 @@ int main(int argc, char* argv[])
     // Copy key (will automatically be padded with 0 if < 256-bits)
     for (int i = 0; i < argKeyLength; ++i)
         key[i] = argv[2][i];
-
 
     // TODO: Add 3rd parameter to specify key size
     // Size of key in words: KEY_SIZE_BYTES / 32
@@ -117,23 +191,31 @@ int main(int argc, char* argv[])
     uint32_t* keyWords = reinterpret_cast<uint32_t*>(key);
 
     // Run sequential encryption
-    aes::encryptFileAES_seq(fin, fout_seq, keyWords, keyWordSize);
-    
-    //reset the input file stream
-    fin.clear();
-    fin.seekg(0, std::ios::beg);
+    if( optionSequential )
+    {
+        aes::encryptFileAES_seq(fin, fout_seq, keyWords, keyWordSize);
+
+        //reset the input file stream
+        fin.clear();
+        fin.seekg(0, std::ios::beg);
+        fout_seq.close();
+    }
 
     // Run parallel encryption
-    aes::encryptFileAES_parallel(fin, fout_par, keyWords, keyWordSize);
-
+    if( optionParallel )
+    {
+        aes::encryptFileAES_parallel(fin, fout_par, keyWords, keyWordSize);
+        fout_par.close();
+    }
     /*** End data encryption section ***/
 
-    // Done and close.
+    // Done with input file.
     fin.close();
-    fout_seq.close();
-    fout_par.close();
 
-    std::cout << "Do Output Files Match: " << aes::compareFiles(encFile_seq, encFile_par) << std::endl;;
+    if( optionSequential && optionParallel )
+    {
+        std::cout << "Do Output Files Match: " << aes::compareFiles(encFile_seq, encFile_par) << std::endl;;
+    }
 
     // Run Encrpytion Test 
     //testKnown(); // TODO: remove
