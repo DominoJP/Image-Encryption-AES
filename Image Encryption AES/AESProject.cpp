@@ -119,33 +119,6 @@ int main(int argc, char* argv[])
     }
     std::cout << "Read File: " << argv[1] << std::endl;
 
-    /*** PREPARE OUTPUT ***/
-    std::string encFile_seq = argv[1] + EXT_STR_seq;
-    std::ofstream fout_seq(encFile_seq, std::ofstream::binary | std::ofstream::out | std::ofstream::trunc);
-
-    std::string encFile_par = argv[1] + EXT_STR_par;
-    std::ofstream fout_par(encFile_par, std::ofstream::binary | std::ofstream::out | std::ofstream::trunc);
-
-    // Create sequential output file
-    if( optionSequential )
-    {
-        if (!fout_seq.is_open()) {
-            std::cout << "Error: could not open file \"" << encFile_seq << "\" for write." << std::endl;
-            return 1;
-        }
-        std::cout << "Sequential Write File: " << encFile_seq << std::endl;
-    }
-
-    // Create parallel output file
-    if( optionParallel )
-    {
-        if (!fout_par.is_open()) {
-            std::cout << "Error: could not open file \"" << encFile_par << "\" for write." << std::endl;
-            return 1;
-        }
-        std::cout << "Parallel Write File: " << encFile_par << std::endl;
-    }
-
     fin.seekg(0, fin.end);
     const std::streamoff length = fin.tellg();
     fin.seekg(0, fin.beg);
@@ -184,27 +157,53 @@ int main(int argc, char* argv[])
     std::cout << "Key Size (Words): \t" << keyWordSize << std::endl;
 
     std::cout << "\nKey:\n";
-    aes::printBufferRowMajorOrder(key, keyWordSize * 4, 16); // keyWordSize * 4 = KEY_SIZE_BYTES
+    aes::printBufferRowMajorOrder(key, keyWordSize * 4, keyWordSize * 4); // keyWordSize * 4 = KEY_SIZE_BYTES
     std::cout << std::endl;
 
     // Encrypt fin data and write it to fout
     uint32_t* keyWords = reinterpret_cast<uint32_t*>(key);
 
+    // Declare output files
+    std::string encFile_seq = "";
+    std::string encFile_par = "";
+
     // Run sequential encryption
     if( optionSequential )
     {
+        // Prepare output
+        encFile_seq = argv[1] + EXT_STR_seq;
+        std::ofstream fout_seq(encFile_seq, std::ofstream::binary | std::ofstream::out | std::ofstream::trunc);
+
+        if (!fout_seq.is_open()) {
+            std::cout << "Error: could not open file \"" << encFile_seq << "\" for write." << std::endl;
+            return 1;
+        }
+        std::cout << "Sequential Write File: " << encFile_seq << std::endl;
+
         aes::encryptFileAES_seq(fin, fout_seq, keyWords, keyWordSize);
+
+        fout_seq.close();
 
         //reset the input file stream
         fin.clear();
         fin.seekg(0, std::ios::beg);
-        fout_seq.close();
     }
 
     // Run parallel encryption
     if( optionParallel )
     {
+        // Prepare output
+        encFile_par = argv[1] + EXT_STR_par;
+        std::ofstream fout_par(encFile_par, std::ofstream::binary | std::ofstream::out | std::ofstream::trunc);
+
+        if (!fout_par.is_open()) {
+            std::cout << "Error: could not open file \"" << encFile_par << "\" for write." << std::endl;
+            return 1;
+        }
+        std::cout << "Parallel Write File: " << encFile_par << std::endl;
+
         aes::encryptFileAES_parallel(fin, fout_par, keyWords, keyWordSize);
+
         fout_par.close();
     }
     /*** End data encryption section ***/

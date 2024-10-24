@@ -432,7 +432,7 @@ void aes::sBoxSubstitution(unsigned char* const& buffer, const std::size_t buffe
 
 void aes::printBufferRowMajorOrder(const unsigned char* const& buffer, const std::size_t size, const std::size_t colCount)
 {
-    assert(size % colCount == 0);  // TODO (FIX): This assertion fails when a 17-character key is given on the command line
+    assert(size % colCount == 0);
 
     std::size_t rowCount = size / colCount;
     for (std::size_t row = 0; row < rowCount; ++row) {
