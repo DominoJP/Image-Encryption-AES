@@ -17,6 +17,10 @@ const std::string EXT_STR_par = "_par.enc";
 bool testKnown128();
 void printHelpMsg(void);
 
+//Timings
+double sequential_time_total;
+double parallel_time_total;
+
 
 /**
 * Prints the CLI usage text to the terminal.
@@ -180,7 +184,9 @@ int main(int argc, char* argv[])
         }
         std::cout << "Sequential Write File: " << encFile_seq << std::endl;
 
-        aes::encryptFileAES_seq(fin, fout_seq, keyWords, keyWordSize);
+        sequential_time_total = aes::encryptFileAES_seq(fin, fout_seq, keyWords, keyWordSize);
+
+        std::cout << "Sequential time: " << sequential_time_total << std::endl;
 
         fout_seq.close();
 
@@ -202,7 +208,8 @@ int main(int argc, char* argv[])
         }
         std::cout << "Parallel Write File: " << encFile_par << std::endl;
 
-        aes::encryptFileAES_parallel(fin, fout_par, keyWords, keyWordSize);
+        parallel_time_total = aes::encryptFileAES_parallel(fin, fout_par, keyWords, keyWordSize);
+        std::cout << "Parallel time: " << parallel_time_total << std::endl;
 
         fout_par.close();
     }

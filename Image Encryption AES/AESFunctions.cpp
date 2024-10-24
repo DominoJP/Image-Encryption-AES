@@ -7,7 +7,7 @@
 #include <cassert>
 
 
-bool aes::encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize)
+double aes::encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize)
 {
     static constexpr int CHUNK_SIZE = AES_BLOCK_SIZE * 2000;
 
@@ -34,6 +34,10 @@ bool aes::encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint
     const std::streamsize fileSize = inFile.tellg();
     inFile.seekg(0, inFile.beg);
 
+    double seq_start_time;
+    double seq_end_time;
+    double seq_time = 0;
+    
     // While there is more data to read
     while (!inFile.eof()) {
         // Read chunk
@@ -50,15 +54,19 @@ bool aes::encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint
             dataSize += AES_BLOCK_SIZE - sizeOfLastBlock;
 
             // Debug Print
-            std::cout << "Padded Last Block: \n";
-            printBufferColMajorOrder(buffer.data() + endOfLastBlock, AES_BLOCK_SIZE, AES_BLOCK_COLS);
+            //std::cout << "Padded Last Block: \n";
+            //printBufferColMajorOrder(buffer.data() + endOfLastBlock, AES_BLOCK_SIZE, AES_BLOCK_COLS);
         }
 
         assert(dataSize % AES_BLOCK_SIZE == 0);
         const long long numBlocks = dataSize / AES_BLOCK_SIZE;
+
+        seq_start_time = omp_get_wtime();
         for (int i = 0; i < numBlocks; ++i) {
             encryptBlockAES(buffer.data() + (std::size_t(i) * AES_BLOCK_SIZE), expandedKey.data(), numRounds, key, keyWordSize);
         }
+        seq_end_time = omp_get_wtime();
+        seq_time += seq_end_time - seq_start_time;
 
         // Write encrypted data to new file.
         outFile.write(reinterpret_cast<char*>(buffer.data()), dataSize);
@@ -77,10 +85,10 @@ bool aes::encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint
         outFile.write(reinterpret_cast<char*>(buffer.data()), AES_BLOCK_SIZE);
     }
 
-    return true;
+    return seq_time;
 }
 
-bool aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize)
+double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize)
 {
     const int CHUNK_SIZE = AES_BLOCK_SIZE * 2000; //finalFileSize;
 
@@ -107,6 +115,9 @@ bool aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile,
     const std::streamsize fileSize = inFile.tellg();
     inFile.seekg(0, inFile.beg);
 
+    double par_start_time;
+    double par_end_time;
+    double par_time = 0;
     // While there is more data to read
     while (!inFile.eof()) {
         // Read block
@@ -123,18 +134,23 @@ bool aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile,
             dataSize += AES_BLOCK_SIZE - sizeOfLastBlock;
 
             // Debug Print
-            std::cout << "Padded Last Block: \n";
-            printBufferColMajorOrder(buffer.data() + endOfLastBlock, AES_BLOCK_SIZE, AES_BLOCK_COLS);
+            //std::cout << "Padded Last Block: \n";
+            //printBufferColMajorOrder(buffer.data() + endOfLastBlock, AES_BLOCK_SIZE, AES_BLOCK_COLS); 
         }
 
         assert(dataSize % AES_BLOCK_SIZE == 0);
 
         const long long numBlocks = dataSize / AES_BLOCK_SIZE;
+        
+        par_start_time = omp_get_wtime();
 
 #       pragma omp parallel for
         for (int i = 0; i < numBlocks; ++i) {
             encryptBlockAES(buffer.data() + (std::size_t(i) * AES_BLOCK_SIZE), expandedKey.data(), numRounds, key, keyWordSize);
         }
+        par_end_time = omp_get_wtime();
+        
+        par_time += par_end_time - par_start_time;
 
         // Write encrypted data to new file.
         outFile.write(reinterpret_cast<char*>(buffer.data()), dataSize);
@@ -153,7 +169,7 @@ bool aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile,
         outFile.write(reinterpret_cast<char*>(buffer.data()), AES_BLOCK_SIZE);
     }
 
-    return true;
+    return par_time;
 }
 
 void aes::encryptBlockAES(unsigned char* buffer, uint32_t* expandedKeys, const std::size_t numRounds, const uint32_t* const key, const std::size_t keySizeWords)
