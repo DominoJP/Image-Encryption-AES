@@ -39,8 +39,8 @@ static void printHelpMsg(void)
                       17 - 24 chars: AES 192-bit mode.
                       25 - 32 chars: AES 256-bit mode.
     Optional flags:
-        -s          Run encryption in sequential mode only.
-        -p          Run encryption in parallel mode only.
+        -s          Run in sequential mode only.
+        -p          Run in parallel mode only.
         -d          Run decryption instead of encryption for the specified
                     mode(s).
         -e          Run encryption for the specified modes, as opposed to
@@ -113,7 +113,7 @@ int main(int argc, char* argv[])
             return 1;
         }
 
-        const unsigned int arglen = strlen(argv[3]);
+        const std::size_t arglen = strlen(argv[3]);
 
         for (unsigned int i = 1; i < arglen; i++)
         {
