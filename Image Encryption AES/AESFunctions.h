@@ -28,6 +28,8 @@ namespace aes
 
 	double encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize);
 	double encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize);
+	double decryptFileAES_seq( void );  // TODO  arguments
+	double decryptFileAES_parallel( void );  // TODO  arguments
 
 	void encryptBlockAES(unsigned char* buffer, uint32_t* expandedKeys, const std::size_t numRounds, const uint32_t* const key, const std::size_t keySizeWords);
 

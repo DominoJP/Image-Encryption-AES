@@ -11,7 +11,8 @@ double aes::encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, ui
 {
     static constexpr int CHUNK_SIZE = AES_BLOCK_SIZE * 2000;
 
-    assert(inFile.is_open() && outFile.is_open());
+    assert(inFile.is_open());
+    assert(outFile.is_open());
 
     // Number of rounds, based on key size
     std::size_t numRounds = getNumbRounds(keyWordSize);
@@ -168,6 +169,20 @@ double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFil
         // Write encrypted data to new file.
         outFile.write(reinterpret_cast<char*>(buffer.data()), AES_BLOCK_SIZE);
     }
+
+    return par_time;
+}
+
+double aes::decryptFileAES_seq( void )
+{
+    double par_time = 0;
+
+    return par_time;
+}
+
+double aes::decryptFileAES_parallel( void )
+{
+    double par_time = 0;
 
     return par_time;
 }
