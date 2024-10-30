@@ -26,10 +26,13 @@ namespace aes
 {
 	// AES Function Declarations
 
-	bool encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize);
-	bool encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize);
+	double encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize);
+	double encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize);
+	double decryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize);  // TODO  arguments
+	double decryptFileAES_parallel( void );  // TODO  arguments
 
 	void encryptBlockAES(unsigned char* buffer, uint32_t* expandedKeys, const std::size_t numRounds, const uint32_t* const key, const std::size_t keySizeWords);
+	void decryptBlockAES(unsigned char* buffer, uint32_t* expandedKeys, const std::size_t numRounds, const uint32_t* const key, const std::size_t keySizeWords);  // TODO  arguments
 
 	void expandKey(uint32_t* const& expandedKeys, const std::size_t numRounds, const uint32_t* const& key, std::size_t keySize);
 
@@ -37,7 +40,7 @@ namespace aes
 
 	std::size_t getNumbRounds(std::size_t keySizeWords);
 
-	void rotateWordLeft(uint32_t& words, const std::size_t shiftAmount);
+    void rotateWordLeft(uint32_t& words, const std::size_t shiftAmount);
 
 	void xorByteArray(unsigned char* buffer, unsigned char* key, std::size_t keySizeBytes);
 
@@ -47,7 +50,7 @@ namespace aes
 
 	void shiftRows(unsigned char* buffer, const std::size_t size, const std::size_t rowCount);
 
-	void shiftCols(uint32_t* const& buffer, const std::size_t rowCount);
+	//void shiftCols(uint32_t* const& buffer, const std::size_t rowCount); UNUSED
 
 	void sBoxSubstitution(unsigned char* const& buffer, const std::size_t bufferSize);
 
