@@ -176,11 +176,44 @@ double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFil
 
 // TODO: Implement.  Mimic structure of 'encrypt..._seq' function above.
 //       Instead of encryptBlockAES(), call decryptBlockAES()
-double aes::decryptFileAES_seq( void )
-{
-    double par_time = 0;
+double aes::decryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize) {
+    static constexpr int CHUNK_SIZE = AES_BLOCK_SIZE * 2000; // Buffer size for processing
 
-    return par_time;
+    // Ensure files are open for reading and writing
+    assert(inFile.is_open());
+    assert(outFile.is_open());
+
+    // Determine the number of AES rounds based on key size
+    std::size_t numRounds = getNumbRounds(keyWordSize);
+
+    // Expand the key for all AES rounds
+    std::vector<uint32_t> expandedKey((numRounds + 1) * 4, 0);
+    expandKey(expandedKey.data(), numRounds, key, keyWordSize);
+
+    // Buffer to store chunks of file data
+    std::vector<unsigned char> buffer(CHUNK_SIZE, 0);
+    std::streamsize dataSize = 0;
+
+    double seq_start_time = omp_get_wtime();  // Start timing the sequential decryption
+
+    // Read through the file in chunks and decrypt each chunk
+    while (!inFile.eof()) {
+        inFile.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
+        dataSize = inFile.gcount();  // Get the size of the data read into buffer
+
+        const long long numBlocks = dataSize / AES_BLOCK_SIZE;
+
+        // Process each 128-bit block in the chunk
+        for (int i = 0; i < numBlocks; ++i) {
+            decryptBlockAES(buffer.data() + (std::size_t(i) * AES_BLOCK_SIZE), expandedKey.data(), numRounds, key, keyWordSize);
+        }
+
+        // Write decrypted data to output file
+        outFile.write(reinterpret_cast<char*>(buffer.data()), dataSize);
+    }
+
+    double seq_end_time = omp_get_wtime();  // End timing
+    return seq_end_time - seq_start_time;   // Return the time taken for decryption
 }
 
 // TODO: Implement.  Mimic structure of 'encrypt..._parallel' function above.
@@ -250,11 +283,30 @@ void aes::encryptBlockAES(unsigned char* buffer, uint32_t* expandedKeys, const s
 *
 * See FIPS 197, Section 5.1, Algorithm 1: Cipher()
 */
-void aes::decryptBlockAES(void)  // TODO: args
-{
-    // TODO: implement.  Mimic style of encryptBlockAES
-    return;
+void aes::decryptBlockAES(unsigned char* buffer, uint32_t* expandedKeys, const std::size_t numRounds, const uint32_t* const key, const std::size_t keySizeWords) {
+    static constexpr int ROUND_KEY_SIZE = 16;
+
+    // Start with the last round key
+    uint32_t* roundKey = expandedKeys + numRounds * 4;
+    xorByteArray(buffer, reinterpret_cast<unsigned char*>(roundKey), ROUND_KEY_SIZE);
+
+    // Perform N-1 rounds in reverse
+    for (int r = numRounds - 1; r > 0; --r) {
+        //inverseShiftRows(buffer, AES_BLOCK_SIZE, AES_BLOCK_ROWS);
+        // inverseSBoxSubstitution(buffer, AES_BLOCK_SIZE);
+
+        roundKey -= 4;  // Move to the previous round key
+        xorByteArray(buffer, reinterpret_cast<unsigned char*>(roundKey), ROUND_KEY_SIZE);
+
+        //inverseMixColumns(buffer, AES_BLOCK_SIZE, AES_BLOCK_ROWS);
+    }
+
+    // Final round (No InverseMixColumns here)
+    //inverseShiftRows(buffer, AES_BLOCK_SIZE, AES_BLOCK_ROWS);
+    //inverseSBoxSubstitution(buffer, AES_BLOCK_SIZE);
+    xorByteArray(buffer, reinterpret_cast<unsigned char*>(expandedKeys), ROUND_KEY_SIZE);
 }
+
 
 
 void aes::expandKey(uint32_t* const& expandedKeys, const std::size_t numRounds, const uint32_t* const& key, std::size_t keySize)

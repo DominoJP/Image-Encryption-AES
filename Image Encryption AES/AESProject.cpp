@@ -220,7 +220,7 @@ int main(int argc, char* argv[])
         }
         else
         {
-            sequential_time_total = aes::decryptFileAES_seq();  // TODO: add arguments
+            sequential_time_total = aes::decryptFileAES_seq(fin, fout_seq, keyWords, keyWordSize);  // TODO: add arguments
         }
 
         std::cout << "Sequential time: " << sequential_time_total << std::endl;
