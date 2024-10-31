@@ -4,6 +4,8 @@
 
 #include <iostream>
 #include <algorithm>
+#include <omp.h>
+
 #include "AESFunctions.h"
 
 #define BUFFER_SIZE AES_BLOCK_SIZE
@@ -182,11 +184,13 @@ int main(int argc, char* argv[])
             std::cout << "Error: could not open file \"" << encFile_seq << "\" for write." << std::endl;
             return 1;
         }
+        std::cout << "------------------ Sequential AES ------------------" << std::endl;
         std::cout << "Sequential Write File: " << encFile_seq << std::endl;
 
         sequential_time_total = aes::encryptFileAES_seq(fin, fout_seq, keyWords, keyWordSize);
 
         std::cout << "Sequential time: " << sequential_time_total << std::endl;
+        std::cout << "----------------------------------------------------" << std::endl << std::endl;
 
         fout_seq.close();
 
@@ -206,10 +210,14 @@ int main(int argc, char* argv[])
             std::cout << "Error: could not open file \"" << encFile_par << "\" for write." << std::endl;
             return 1;
         }
+        std::cout << "------------------- Parallel AES -------------------" << std::endl;
         std::cout << "Parallel Write File: " << encFile_par << std::endl;
+
+        std::cout << "Max Threads: " << omp_get_max_threads() << std::endl;
 
         parallel_time_total = aes::encryptFileAES_parallel(fin, fout_par, keyWords, keyWordSize);
         std::cout << "Parallel time: " << parallel_time_total << std::endl;
+        std::cout << "----------------------------------------------------" << std::endl;
 
         fout_par.close();
     }

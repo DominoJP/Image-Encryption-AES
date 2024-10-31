@@ -144,10 +144,25 @@ double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFil
         
         par_start_time = omp_get_wtime();
 
-#       pragma omp parallel for
-        for (int i = 0; i < numBlocks; ++i) {
-            encryptBlockAES(buffer.data() + (std::size_t(i) * AES_BLOCK_SIZE), expandedKey.data(), numRounds, key, keyWordSize);
+        //std::cout << "Max Threads: " << omp_get_max_threads() << std::endl;
+
+        #pragma omp parallel
+        {
+            //#pragma omp single
+            //{
+            //    int num_threads = omp_get_num_threads();
+            //    //std::cout << "Number of threads: " << num_threads << std::endl;
+            //}
+
+            #pragma omp for 
+            for (int i = 0; i < numBlocks; ++i) {
+                //int num_threads = omp_get_num_threads();
+                //std::cout << "Number of threads: " << num_threads << std::endl;
+                //std::cout << "Thread: " <<  omp_get_thread_num() << std::endl;
+                encryptBlockAES(buffer.data() + (std::size_t(i) * AES_BLOCK_SIZE), expandedKey.data(), numRounds, key, keyWordSize);
+            }
         }
+
         par_end_time = omp_get_wtime();
         
         par_time += par_end_time - par_start_time;
