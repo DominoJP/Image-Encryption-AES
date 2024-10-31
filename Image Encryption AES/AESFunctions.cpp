@@ -11,7 +11,8 @@ double aes::encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, ui
 {
     static constexpr int CHUNK_SIZE = AES_BLOCK_SIZE * 2000;
 
-    assert(inFile.is_open() && outFile.is_open());
+    assert(inFile.is_open());
+    assert(outFile.is_open());
 
     // Number of rounds, based on key size
     std::size_t numRounds = getNumbRounds(keyWordSize);
@@ -88,6 +89,7 @@ double aes::encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, ui
     return seq_time;
 }
 
+/** Called by encryptFileAES functions */
 double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize)
 {
     const int CHUNK_SIZE = AES_BLOCK_SIZE * 2000; //finalFileSize;
@@ -187,12 +189,65 @@ double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFil
     return par_time;
 }
 
+// TODO: Implement.  Mimic structure of 'encrypt..._seq' function above.
+//       Instead of encryptBlockAES(), call decryptBlockAES()
+double aes::decryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize) {
+    static constexpr int CHUNK_SIZE = AES_BLOCK_SIZE * 2000; // Buffer size for processing
+
+    // Ensure files are open for reading and writing
+    assert(inFile.is_open());
+    assert(outFile.is_open());
+
+    // Determine the number of AES rounds based on key size
+    std::size_t numRounds = getNumbRounds(keyWordSize);
+
+    // Expand the key for all AES rounds
+    std::vector<uint32_t> expandedKey((numRounds + 1) * 4, 0);
+    expandKey(expandedKey.data(), numRounds, key, keyWordSize);
+
+    // Buffer to store chunks of file data
+    std::vector<unsigned char> buffer(CHUNK_SIZE, 0);
+    std::streamsize dataSize = 0;
+
+    double seq_start_time = omp_get_wtime();  // Start timing the sequential decryption
+
+    // Read through the file in chunks and decrypt each chunk
+    while (!inFile.eof()) {
+        inFile.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
+        dataSize = inFile.gcount();  // Get the size of the data read into buffer
+
+        const long long numBlocks = dataSize / AES_BLOCK_SIZE;
+
+        // Process each 128-bit block in the chunk
+        for (int i = 0; i < numBlocks; ++i) {
+            decryptBlockAES(buffer.data() + (std::size_t(i) * AES_BLOCK_SIZE), expandedKey.data(), numRounds, key, keyWordSize);
+        }
+
+        // Write decrypted data to output file
+        outFile.write(reinterpret_cast<char*>(buffer.data()), dataSize);
+    }
+
+    double seq_end_time = omp_get_wtime();  // End timing
+    return seq_end_time - seq_start_time;   // Return the time taken for decryption
+}
+
+// TODO: Implement.  Mimic structure of 'encrypt..._parallel' function above.
+//       Instead of encryptBlockAES(), call decryptBlockAES()
+double aes::decryptFileAES_parallel( void )
+{
+    double par_time = 0;
+
+    return par_time;
+}
+
+/**
+* Encrypts one 16-byte block of the file.
+* 
+* See FIPS 197, Section 5.1, Algorithm 1: Cipher()
+*/
 void aes::encryptBlockAES(unsigned char* buffer, uint32_t* expandedKeys, const std::size_t numRounds, const uint32_t* const key, const std::size_t keySizeWords)
 {
-    static const int ROUND_KEY_SIZE = 16;
-
-    // Ensure buffer size is 16 bytes (128 bits)
-    //assert(buffer.size() == ROUND_KEY_SIZE);
+    static constexpr int ROUND_KEY_SIZE = 16;
 
     // Pointer we use to walk roundWords array in 32-bit steps
     uint32_t* roundKey = expandedKeys;
@@ -236,6 +291,38 @@ void aes::encryptBlockAES(unsigned char* buffer, uint32_t* expandedKeys, const s
     // Xor the buffer with the current round key
     xorByteArray(buffer, reinterpret_cast<unsigned char*>(roundKey), ROUND_KEY_SIZE);
 }
+
+
+/**
+* Decrypts one 16-byte block of the file.
+*
+* See FIPS 197, Section 5.1, Algorithm 1: Cipher()
+*/
+void aes::decryptBlockAES(unsigned char* buffer, uint32_t* expandedKeys, const std::size_t numRounds, const uint32_t* const key, const std::size_t keySizeWords) {
+    static constexpr int ROUND_KEY_SIZE = 16;
+
+    // Start with the last round key
+    uint32_t* roundKey = expandedKeys + numRounds * 4;
+    xorByteArray(buffer, reinterpret_cast<unsigned char*>(roundKey), ROUND_KEY_SIZE);
+
+    // Perform N-1 rounds in reverse
+    for (int r = numRounds - 1; r > 0; --r) {
+        //inverseShiftRows(buffer, AES_BLOCK_SIZE, AES_BLOCK_ROWS);
+        // inverseSBoxSubstitution(buffer, AES_BLOCK_SIZE);
+
+        roundKey -= 4;  // Move to the previous round key
+        xorByteArray(buffer, reinterpret_cast<unsigned char*>(roundKey), ROUND_KEY_SIZE);
+
+        //inverseMixColumns(buffer, AES_BLOCK_SIZE, AES_BLOCK_ROWS);
+    }
+
+    // Final round (No InverseMixColumns here)
+    //inverseShiftRows(buffer, AES_BLOCK_SIZE, AES_BLOCK_ROWS);
+    //inverseSBoxSubstitution(buffer, AES_BLOCK_SIZE);
+    xorByteArray(buffer, reinterpret_cast<unsigned char*>(expandedKeys), ROUND_KEY_SIZE);
+}
+
+
 
 void aes::expandKey(uint32_t* const& expandedKeys, const std::size_t numRounds, const uint32_t* const& key, std::size_t keySize)
 {
@@ -295,6 +382,7 @@ void aes::expandKey(uint32_t* const& expandedKeys, const std::size_t numRounds, 
     }
 }
 
+/** Called by encryptFileAES functions*/
 void aes::padPKCS7(unsigned char* const& buffer, const std::size_t bufferSize, const unsigned int startPos)
 {
     unsigned char padByte = static_cast<unsigned char> (bufferSize - startPos);
@@ -302,6 +390,7 @@ void aes::padPKCS7(unsigned char* const& buffer, const std::size_t bufferSize, c
         buffer[i] = padByte;
 }
 
+/** Called by encryptFileAES functions*/
 std::size_t aes::getNumbRounds(std::size_t keySizeWords)
 {
     switch (keySizeWords) {
@@ -317,6 +406,7 @@ std::size_t aes::getNumbRounds(std::size_t keySizeWords)
     }
 }
 
+/** Helper function for expandKey() */
 void aes::rotateWordLeft(uint32_t& words, const std::size_t shiftAmount)
 {
     int shift = shiftAmount % sizeof(uint32_t);
@@ -328,6 +418,9 @@ void aes::rotateWordLeft(uint32_t& words, const std::size_t shiftAmount)
     words = shiftedRight | shiftedLeft;
 }
 
+/**
+* See FIPS 197, section 5.1.4: AddRoundKey()
+*/
 void aes::xorByteArray(unsigned char* buffer, unsigned char* key, std::size_t keySizeBytes)
 {
     assert(keySizeBytes % sizeof(uint64_t) == 0);
@@ -341,6 +434,7 @@ void aes::xorByteArray(unsigned char* buffer, unsigned char* key, std::size_t ke
     }
 }
 
+/** Helper function for mixColumns() */
 unsigned char aes::galoisMultiplyBy2(unsigned char value) 
 {
     unsigned char result = value << 1;
@@ -350,6 +444,11 @@ unsigned char aes::galoisMultiplyBy2(unsigned char value)
     return result;
 }
 
+/**
+* Transform buffer by splitting into columns and performing matrix multiplication.
+*
+* See FIPS 197, Section 5.1.3: MixColumns()
+*/
 void aes::mixColumns(unsigned char* buffer, const std::size_t size, const std::size_t rowCount)
 {
     static const unsigned char COL_MIXER[AES_BLOCK_COLS][AES_BLOCK_ROWS] = {
@@ -394,18 +493,27 @@ void aes::mixColumns(unsigned char* buffer, const std::size_t size, const std::s
     std::copy(mixed.begin(), mixed.end(), buffer);
 }
 
+/* UNUSED ? commenting out for now
 void aes::shiftCols(uint32_t* const& buffer, const std::size_t rowCount)
 {
     for (int row = 1; row < rowCount; ++row) {
         rotateWordLeft(*(buffer + row), row);
     }
 }
+*/
 
+/**
+* Transforms buffer by splitting into 4 rows and shifting each row a different amount.
+* 
+* See FIPS 197, Section 5.1.2: ShiftRows()
+*/
 void aes::shiftRows(unsigned char* buffer, const std::size_t size, const std::size_t rowCount)
 {
     assert(size % rowCount == 0);
 
-    std::size_t colCount = size / rowCount;
+    const std::size_t colCount = size / rowCount;
+
+    // TODO: There's probably a faster way to do this if we are certain the buffer is 16 bytes
     for (std::size_t row = 1; row < rowCount; ++row) {
         std::size_t shift = row;
 
@@ -416,7 +524,7 @@ void aes::shiftRows(unsigned char* buffer, const std::size_t size, const std::si
         for (std::size_t col = 0; col < shift; ++col)
             temps.at(col) = buffer[col * rowCount + row];
 
-        std::size_t shiftEnd = colCount - shift;
+        const std::size_t shiftEnd = colCount - shift;
 
         // Shift old values left
         for (std::size_t col = 0; col < shiftEnd; ++col)
@@ -428,6 +536,11 @@ void aes::shiftRows(unsigned char* buffer, const std::size_t size, const std::si
     }
 }
 
+/**
+* Transforms each byte of the 16-byte buffer.
+* 
+* See FIPS 197 Section 5.1.1: SubBytes()
+*/
 void aes::sBoxSubstitution(unsigned char* const& buffer, const std::size_t bufferSize)
 {
     static const unsigned char sBox[AES_BLOCK_SIZE][AES_BLOCK_SIZE] = {
@@ -460,6 +573,7 @@ void aes::sBoxSubstitution(unsigned char* const& buffer, const std::size_t buffe
     }
 }
 
+/* OUTPUT FUNCTIONS */
 
 void aes::printBufferRowMajorOrder(const unsigned char* const& buffer, const std::size_t size, const std::size_t colCount)
 {

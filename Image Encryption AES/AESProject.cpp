@@ -17,7 +17,6 @@ const std::string EXT_STR_par = "_par.enc";
 
 // Function Declarations
 bool testKnown128();
-void printHelpMsg(void);
 
 //Timings
 double sequential_time_total;
@@ -27,11 +26,11 @@ double parallel_time_total;
 /**
 * Prints the CLI usage text to the terminal.
 */
-void printHelpMsg(void)
+static void printHelpMsg(void)
 {
     const char* help_msg = R"heredoc(
     Usage:
-        $ & 'Image Encryption AES.exe' <inputFile> <key> [-sp]
+        $ & 'Image Encryption AES.exe' <inputFile> <key> [-spde]
 
     Arguments:
         inputFile:  path to file that needs encrypting.  Output file will be
@@ -42,9 +41,13 @@ void printHelpMsg(void)
                       17 - 24 chars: AES 192-bit mode.
                       25 - 32 chars: AES 256-bit mode.
     Optional flags:
-        - s         Run encryption in sequential mode only.
-        - p         Run encryption in parallel mode only.
-        (no flag)   Run encryption in both modes.
+        -s          Run in sequential mode only.
+        -p          Run in parallel mode only.
+        -d          Run decryption instead of encryption for the specified
+                    mode(s).
+        -e          Run encryption for the specified modes, as opposed to
+                    decryption (default).
+        (no flag)   Run encryption for both modes and compare outputs.
     )heredoc";
 
     std::cout << help_msg << std::endl;
@@ -61,6 +64,7 @@ int main(int argc, char* argv[])
     // Declare them here and set their default values.
     bool optionSequential = true;
     bool optionParallel = true;
+    bool optionDecrypt = false;
 
     /*** VALIDATE ARGUMENTS ***/
     // Minor improvements maintain backward compatibility with major version number.
@@ -77,6 +81,10 @@ int main(int argc, char* argv[])
     // -s run in series only, or
     // -p run in parallel only
     // (default): run both series and parallel
+    // 
+    // CLI v0.2
+    // 3rd argument may now include 'd' for decrypt
+    // e.g. -ds or -sd would run a sequential-only decryption
     // 
     // TODO: Future ideas:
     // -q quiet mode
@@ -100,22 +108,44 @@ int main(int argc, char* argv[])
     // Check for additional options
     if( argc > 3 )
     {
-        // TODO: add loop(s) to find other options.  For now we're just naively checking for -s or -p
+        // TODO: add loop to find options in other locations.  For now we're just naively checking at argv[3]
         if( (strlen(argv[3]) < 2) || ('-' != argv[3][0]) )
         {
             printHelpMsg();
             return 1;
         }
 
-        if( 's' == argv[3][1] )
+        const std::size_t arglen = strlen(argv[3]);
+
+        for (unsigned int i = 1; i < arglen; i++)
         {
-            optionParallel = false;
-        }
-        if( 'p' == argv[3][1] )
-        {
-            optionSequential = false;
+            switch (argv[3][i])
+            {
+            case 's':
+                optionSequential = true;
+                optionParallel = false;
+                break;
+            case 'p':
+                optionParallel = true;
+                optionSequential = false;
+                break;
+            case 'd':
+                optionDecrypt = true;
+                break;
+            case 'e':
+                optionDecrypt = false;
+                break;
+            default:
+                printHelpMsg();
+                break;
+            }
         }
     }
+
+    std::cout << "Run Mode:" << std::endl;
+    std::cout << "  Do Sequential:   " << ((optionSequential) ? "TRUE" : "FALSE") << std::endl;
+    std::cout << "  Do Parallel:     " << ((optionParallel) ? "TRUE" : "FALSE") << std::endl;
+    std::cout << "  Encryption mode: " << ((optionDecrypt) ? "DECRYPT" : "ENCRYPT") << std::endl;
 
     // Open Input File argv[1]
     std::ifstream fin(argv[1], std::ifstream::binary);
@@ -177,7 +207,7 @@ int main(int argc, char* argv[])
     if( optionSequential )
     {
         // Prepare output
-        encFile_seq = argv[1] + EXT_STR_seq;
+        encFile_seq = argv[1] + EXT_STR_seq;  // TODO: different filename for decrypt
         std::ofstream fout_seq(encFile_seq, std::ofstream::binary | std::ofstream::out | std::ofstream::trunc);
 
         if (!fout_seq.is_open()) {
@@ -187,7 +217,14 @@ int main(int argc, char* argv[])
         std::cout << "------------------ Sequential AES ------------------" << std::endl;
         std::cout << "Sequential Write File: " << encFile_seq << std::endl;
 
-        sequential_time_total = aes::encryptFileAES_seq(fin, fout_seq, keyWords, keyWordSize);
+        if (!optionDecrypt)
+        {
+            sequential_time_total = aes::encryptFileAES_seq(fin, fout_seq, keyWords, keyWordSize);
+        }
+        else
+        {
+            sequential_time_total = aes::decryptFileAES_seq(fin, fout_seq, keyWords, keyWordSize);  // TODO: add arguments
+        }
 
         std::cout << "Sequential time: " << sequential_time_total << std::endl;
         std::cout << "----------------------------------------------------" << std::endl << std::endl;
@@ -200,10 +237,11 @@ int main(int argc, char* argv[])
     }
 
     // Run parallel encryption
-    if( optionParallel )
+    if (optionParallel)
     {
+        std::cout << "Max Threads: " << omp_get_max_threads() << std::endl;
         // Prepare output
-        encFile_par = argv[1] + EXT_STR_par;
+        encFile_par = argv[1] + EXT_STR_par;  // TODO: different filename for decrypt
         std::ofstream fout_par(encFile_par, std::ofstream::binary | std::ofstream::out | std::ofstream::trunc);
 
         if (!fout_par.is_open()) {
@@ -213,9 +251,16 @@ int main(int argc, char* argv[])
         std::cout << "------------------- Parallel AES -------------------" << std::endl;
         std::cout << "Parallel Write File: " << encFile_par << std::endl;
 
-        std::cout << "Max Threads: " << omp_get_max_threads() << std::endl;
+        if (!optionDecrypt)
+        {
+            parallel_time_total = aes::encryptFileAES_parallel(fin, fout_par, keyWords, keyWordSize);
+        }
+        else
+        {
+            parallel_time_total = aes::decryptFileAES_parallel();  // TODO: add arguments
+        }
 
-        parallel_time_total = aes::encryptFileAES_parallel(fin, fout_par, keyWords, keyWordSize);
+        
         std::cout << "Parallel time: " << parallel_time_total << std::endl;
         std::cout << "----------------------------------------------------" << std::endl;
 
