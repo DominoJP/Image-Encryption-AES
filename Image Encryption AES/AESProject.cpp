@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <algorithm>
+#include <filesystem>
 #include "AESFunctions.h"
 
 #define BUFFER_SIZE AES_BLOCK_SIZE
@@ -12,6 +13,9 @@
 // Encrypted File Extension
 const std::string EXT_STR_seq = "_seq.enc";
 const std::string EXT_STR_par = "_par.enc";
+
+// Output Directory
+const std::string OUTPUT_dir = "OutputImages";
 
 // Function Declarations
 bool testKnown128();
@@ -200,6 +204,10 @@ int main(int argc, char* argv[])
     // Declare output files
     std::string encFile_seq = "";
     std::string encFile_par = "";
+
+    // Get File Name without previous directory
+    std::string inputFile = argv[1];
+    //std::string filename = std::filesystem::path(inputFile).filename().string();
 
     // Run sequential encryption
     if( optionSequential )
