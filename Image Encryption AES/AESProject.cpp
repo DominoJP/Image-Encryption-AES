@@ -206,6 +206,9 @@ int main(int argc, char* argv[])
     // Run sequential encryption
     if( optionSequential )
     {
+        std::cout << "------------------ Sequential AES ------------------" << std::endl;
+        
+        
         // Prepare output
         encFile_seq = argv[1] + EXT_STR_seq;  // TODO: different filename for decrypt
         std::ofstream fout_seq(encFile_seq, std::ofstream::binary | std::ofstream::out | std::ofstream::trunc);
@@ -214,7 +217,7 @@ int main(int argc, char* argv[])
             std::cout << "Error: could not open file \"" << encFile_seq << "\" for write." << std::endl;
             return 1;
         }
-        std::cout << "------------------ Sequential AES ------------------" << std::endl;
+        
         std::cout << "Sequential Write File: " << encFile_seq << std::endl;
 
         if (!optionDecrypt)
@@ -234,12 +237,13 @@ int main(int argc, char* argv[])
         //reset the input file stream
         fin.clear();
         fin.seekg(0, std::ios::beg);
+        
     }
 
     // Run parallel encryption
     if (optionParallel)
     {
-        std::cout << "Max Threads: " << omp_get_max_threads() << std::endl;
+        std::cout << "------------------- Parallel AES -------------------" << std::endl;
         // Prepare output
         encFile_par = argv[1] + EXT_STR_par;  // TODO: different filename for decrypt
         std::ofstream fout_par(encFile_par, std::ofstream::binary | std::ofstream::out | std::ofstream::trunc);
@@ -248,8 +252,10 @@ int main(int argc, char* argv[])
             std::cout << "Error: could not open file \"" << encFile_par << "\" for write." << std::endl;
             return 1;
         }
-        std::cout << "------------------- Parallel AES -------------------" << std::endl;
+        
         std::cout << "Parallel Write File: " << encFile_par << std::endl;
+        std::cout << "Max Threads: " << omp_get_max_threads() << std::endl;
+        
 
         if (!optionDecrypt)
         {
