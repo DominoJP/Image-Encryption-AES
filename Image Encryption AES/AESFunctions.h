@@ -28,6 +28,8 @@ namespace aes
 
 	double encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize);
 	double encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize);
+	//added GPU
+	double encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize);
 	double decryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize);  // TODO  arguments
 	double decryptFileAES_parallel( void );  // TODO  arguments
 

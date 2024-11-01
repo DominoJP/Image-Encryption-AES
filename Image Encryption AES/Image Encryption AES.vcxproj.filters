@@ -30,4 +30,8 @@
   <ItemGroup>
     <Text Include="testencrypt.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="AES_GPU.cu" />
+    <None Include="AES_GPU.cuh" />
+  </ItemGroup>
 </Project>

@@ -1,6 +1,9 @@
 #include "AESFunctions.h"
+#include "AES_GPU.cuh"
 
 #include <omp.h>
+#include <cuda_runtime.h>
+#include "device_launch_parameters.h"
 
 #include <iostream>
 #include <bitset>
@@ -152,6 +155,92 @@ double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFil
         }
         par_end_time = omp_get_wtime();
         
+        par_time += par_end_time - par_start_time;
+
+        // Write encrypted data to new file.
+        outFile.write(reinterpret_cast<char*>(buffer.data()), dataSize);
+    }
+
+    // If the entire file was divisible 
+    // by 128-bits then add one extra
+    // padded block per PKCS7 standard
+    if (fileSize % AES_BLOCK_SIZE == 0) {
+        aes::padPKCS7(buffer.data(), AES_BLOCK_SIZE, 0);
+
+        // AES Encryption
+        encryptBlockAES(buffer.data(), expandedKey.data(), numRounds, key, keyWordSize);
+
+        // Write encrypted data to new file.
+        outFile.write(reinterpret_cast<char*>(buffer.data()), AES_BLOCK_SIZE);
+    }
+
+    return par_time;
+}
+
+//Added GPU
+double aes::encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize)
+{
+    const int CHUNK_SIZE = AES_BLOCK_SIZE * 2000; //finalFileSize;
+    
+    //dim3 threadsPerBlock(16, 16);
+    //dim3 numBlocks();
+
+    assert(inFile.is_open() && outFile.is_open());
+
+    // Number of rounds, based on key size
+    std::size_t numRounds = getNumbRounds(keyWordSize);
+
+    // Allocate buffer for round keys
+    // Number of 32-bit key words after expansion
+    // equals 4 * (Nr + 1) according to FIPS 197
+    std::vector<uint32_t> expandedKey = std::vector<uint32_t>((numRounds + 1) * 4, 0);
+
+    // Generate keys for each round
+    expandKey(expandedKey.data(), numRounds, key, keyWordSize);
+
+    // Allocate buffer for reading/writing 128-bit blocks
+    std::vector<unsigned char> buffer = std::vector<unsigned char>(CHUNK_SIZE, 0);
+
+    // Size of data read into buffer
+    std::streamsize dataSize = 0;
+
+    inFile.seekg(0, inFile.end);
+    const std::streamsize fileSize = inFile.tellg();
+    inFile.seekg(0, inFile.beg);
+
+    double par_start_time;
+    double par_end_time;
+    double par_time = 0;
+    // While there is more data to read
+    while (!inFile.eof()) {
+        // Read block
+        inFile.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
+
+        // Get size of data read
+        dataSize = inFile.gcount();
+
+        // If the last block is less than 128-bits pad it.
+        if (dataSize % AES_BLOCK_SIZE != 0) {
+            const std::streampos endOfLastBlock = dataSize - dataSize % AES_BLOCK_SIZE;
+            const unsigned int sizeOfLastBlock = dataSize % AES_BLOCK_SIZE;
+            aes::padPKCS7(buffer.data() + endOfLastBlock, AES_BLOCK_SIZE, sizeOfLastBlock);
+            dataSize += AES_BLOCK_SIZE - sizeOfLastBlock;
+
+            // Debug Print
+            //std::cout << "Padded Last Block: \n";
+            //printBufferColMajorOrder(buffer.data() + endOfLastBlock, AES_BLOCK_SIZE, AES_BLOCK_COLS); 
+        }
+
+        assert(dataSize % AES_BLOCK_SIZE == 0);
+
+        const long long numBlocks = dataSize / AES_BLOCK_SIZE;
+
+        par_start_time = omp_get_wtime();
+        //for (int i = 0; i < numBlocks; ++i) {
+        AES_GPU::encryptBlockAES_GPU<<<1, 1>>>(buffer.data(), expandedKey.data(), numRounds, key, keyWordSize);
+        //}
+        par_end_time = omp_get_wtime();
+
         par_time += par_end_time - par_start_time;
 
         // Write encrypted data to new file.
