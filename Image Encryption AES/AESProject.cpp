@@ -150,7 +150,7 @@ int main(int argc, char* argv[])
     std::cout << "Run Mode:" << std::endl;
     std::cout << "  Do Sequential:   " << ((optionSequential) ? "TRUE" : "FALSE") << std::endl;
     std::cout << "  Do Parallel:     " << ((optionParallel) ? "TRUE" : "FALSE") << std::endl;
-    std::cout << "  Do GPU:     " << ((optionGPU) ? "TRUE" : "FALSE") << std::endl;
+    std::cout << "  Do GPU:          " << ((optionGPU) ? "TRUE" : "FALSE") << std::endl;
     std::cout << "  Encryption mode: " << ((optionDecrypt) ? "DECRYPT" : "ENCRYPT") << std::endl;
 
     // Open Input File argv[1]

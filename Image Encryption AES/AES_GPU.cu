@@ -186,6 +186,8 @@ __device__ void AES_GPU::xorByteArray_GPU(unsigned char* buffer, unsigned char* 
     if (keySizeBytes % sizeof(uint64_t) != 0)
         printf("error occured at xorByteArray");
 
+    //printf("%d", * buffer);
+
     // Xor the buffer in as few iterations as possible
     uint64_t* buffer64 = reinterpret_cast<uint64_t*>(buffer);
     uint64_t* key64 = reinterpret_cast<uint64_t*>(key);

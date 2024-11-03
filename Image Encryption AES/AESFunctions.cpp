@@ -9,6 +9,7 @@
 #include <bitset>
 #include <cassert>
 
+bool printOnce = true;
 
 double aes::encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize)
 {
@@ -180,7 +181,7 @@ double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFil
 //Added GPU
 double aes::encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize)
 {
-    //GPU THREAD BLOCK
+    //GPU THREAD GRID DEFINITION
     const int NUM_THREAD_BLOCKS = 1;
     const int NUM_THREADS_PER_BLOCK = 1024;
 
@@ -259,10 +260,13 @@ double aes::encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, ui
         par_start_time = omp_get_wtime();
         //for (int i = 0; i < numBlocks; ++i) {
         AES_GPU::encryptChunkAES_GPU<<<NUM_THREAD_BLOCKS, NUM_THREADS_PER_BLOCK>>>(d_chunk, d_expandedKey, numRounds, d_key, keyWordSize);
+        // wait for all threads to finish
+        cudaDeviceSynchronize();
         //}
         par_end_time = omp_get_wtime();
 
         par_time += par_end_time - par_start_time;
+        chunk_index++;
 
         // Write encrypted data to new file.
         outFile.write(reinterpret_cast<char*>(buffer.data()), dataSize);
@@ -519,6 +523,14 @@ void aes::rotateWordLeft(uint32_t& words, const std::size_t shiftAmount)
 void aes::xorByteArray(unsigned char* buffer, unsigned char* key, std::size_t keySizeBytes)
 {
     assert(keySizeBytes % sizeof(uint64_t) == 0);
+    if (printOnce)
+    {
+        printf("%d\n", *buffer);
+        printOnce = false;
+    }
+
+
+    
 
     // Xor the buffer in as few iterations as possible
     uint64_t* buffer64 = reinterpret_cast<uint64_t*>(buffer);
