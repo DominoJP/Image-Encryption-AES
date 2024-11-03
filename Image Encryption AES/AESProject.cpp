@@ -138,6 +138,8 @@ int main(int argc, char* argv[])
                 optionDecrypt = false;
                 break;
             case 'g':
+                optionParallel = false;
+                optionSequential = false;
                 optionGPU = true;
                 break;
             default:

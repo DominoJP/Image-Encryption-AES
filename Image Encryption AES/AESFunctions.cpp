@@ -96,7 +96,7 @@ double aes::encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, ui
 /** Called by encryptFileAES functions */
 double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize)
 {
-    const int CHUNK_SIZE = AES_BLOCK_SIZE * 2000; //finalFileSize;
+    const int CHUNK_SIZE = AES_BLOCK_SIZE * 1024; //finalFileSize;
 
     assert(inFile.is_open() && outFile.is_open());
 
@@ -181,9 +181,10 @@ double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFil
 //Added GPU
 double aes::encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize)
 {
+
     //GPU THREAD GRID DEFINITION
     const int NUM_THREAD_BLOCKS = 1;
-    const int NUM_THREADS_PER_BLOCK = 1024;
+    const int NUM_THREADS_PER_BLOCK = 1024;     //standard number of blocks
 
     //FILE CHUNK
     const int BLOCKS_PER_CHUNK = NUM_THREAD_BLOCKS * NUM_THREADS_PER_BLOCK;  //should match appropriate amount of cuda threads available
@@ -213,7 +214,7 @@ double aes::encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, ui
 
     //Send GPU Key
     cudaMemcpy(d_key, key, keyWordSize, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_expandedKey, expandedKey.data(), expandedKey_SIZE ,cudaMemcpyHostToDevice);
+    cudaMemcpy(d_expandedKey, expandedKey.data(), expandedKey.size()*4, cudaMemcpyHostToDevice);
 
     // Allocate buffer for reading/writing 128-bit blocks
     std::vector<unsigned char> buffer = std::vector<unsigned char>(CHUNK_SIZE, 0);
@@ -255,13 +256,16 @@ double aes::encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, ui
         const long long numBlocks = dataSize / AES_BLOCK_SIZE;
 
         //copy the chunk into Device
-        cudaMemcpy(d_chunk, buffer.data(), dataSize, cudaMemcpyHostToDevice);
+        cudaMemcpy(d_chunk, buffer.data(), buffer.size() * 4, cudaMemcpyHostToDevice);
 
         par_start_time = omp_get_wtime();
         //for (int i = 0; i < numBlocks; ++i) {
         AES_GPU::encryptChunkAES_GPU<<<NUM_THREAD_BLOCKS, NUM_THREADS_PER_BLOCK>>>(d_chunk, d_expandedKey, numRounds, d_key, keyWordSize);
         // wait for all threads to finish
         cudaDeviceSynchronize();
+
+        cudaMemcpy(buffer.data(), d_chunk, buffer.size() * 4, cudaMemcpyDeviceToHost);
+
         //}
         par_end_time = omp_get_wtime();
 
