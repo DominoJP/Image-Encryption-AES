@@ -112,6 +112,8 @@ double aes::encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, ui
  * @param outFile Output file stream
  * @param key Pointer to AES key
  * @param keyWordSize Key size in words
+ * 
+ * @return Execution time for encryption
  */
 double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize)
 {
@@ -207,6 +209,8 @@ double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFil
  * @param outFile Output file stream
  * @param key Pointer to AES key
  * @param keyWordSize Key size in words
+ * 
+ * @return Execution time for decryption
   */
 double aes::decryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize) {
     static constexpr int CHUNK_SIZE = AES_BLOCK_SIZE * 2000; // Buffer size for processing
@@ -252,6 +256,8 @@ double aes::decryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, ui
 //       Instead of encryptBlockAES(), call decryptBlockAES()
 /**
  * @brief Decrypt file using parallelized
+ * 
+ * @return Execution time for decryption
  */
 double aes::decryptFileAES_parallel( void )
 {

@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <vector>
 #include <fstream>
-
+#include <cstring>
 
 constexpr auto AES_BLOCK_SIZE = 16; /**< AES block size in bytes */
 constexpr auto AES_BLOCK_COLS = 4; /**< AES block number of columns  */
@@ -34,6 +34,8 @@ namespace aes
 	 * @param outFile Output file stream
 	 * @param key Pointer to AES key
 	 * @param keyWordSize Key size in words
+	 * 
+	 * @return Execution time for encryption
 	 */
 	double encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize);
 
@@ -44,6 +46,8 @@ namespace aes
 	 * @param outFile Output file stream
 	 * @param key Pointer to AES key
 	 * @param keyWordSize Key size in words
+	 * 
+	 * @return Execution time for encryption
 	 */
 	double encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize);
 
@@ -54,11 +58,15 @@ namespace aes
 	 * @param outFile Output file stream
 	 * @param key Pointer to AES key
 	 * @param keyWordSize Key size in words
+	 * 
+	 * @return Execution time for decryption
 	 */
 	double decryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize);
 
 	/**
 	 * @brief Decrypt file using parallelized
+	 * 
+	 * @return Execution time for decryption
 	 */
 	double decryptFileAES_parallel( void );  // TODO  arguments
 
@@ -94,7 +102,13 @@ namespace aes
 	 */
 	void expandKey(uint32_t* const& expandedKeys, const std::size_t numRounds, const uint32_t* const& key, std::size_t keySize);
 
-
+	/**
+	 * @brief Pads buffer using PKC57 padding scheme
+	 * 
+	 * @param buffer Pointer to data buffer to be padded
+	 * @param bufferSized Total size of buffer
+	 * @param startPos Position to begin padding
+	 */
 	void padPKCS7(unsigned char* const& buffer, const std::size_t bufferSize, const unsigned int startPos);
 
 	/**
@@ -114,6 +128,13 @@ namespace aes
 	 */
 	void rotateWordLeft(uint32_t& words, const std::size_t shiftAmount);
 
+	/**
+	 * @brief XORs each byte in buffer with corresponding byte in a key
+	 * 
+	 * @param buffer Pointer to data buffer for XOR
+	 * @param key Pointer to key used for XOR
+	 * @param keySizedBytes Number of bytes in key
+	 */
 	void xorByteArray(unsigned char* buffer, unsigned char* key, std::size_t keySizeBytes);
 
 	/**

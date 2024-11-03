@@ -5,7 +5,7 @@
 #include <iostream>
 #include <algorithm>
 #include "AESFunctions.h"
-
+#include <cstring>
 
 
 #define BUFFER_SIZE AES_BLOCK_SIZE
@@ -180,6 +180,8 @@ int main(int argc, char* argv[])
     * then read position and return file pointer to beginning
     * 
     * @param fin Input file stream
+    * 
+    * @return Size of the file in bytes
     */
     fin.seekg(0, fin.end);
     const std::streamoff length = fin.tellg();
@@ -242,6 +244,8 @@ int main(int argc, char* argv[])
      * 
      * Opens output file and will write encryption data sequentially
      * It will display errors and exit if output file can't be opened
+     * 
+     * @return int Returns 1 if the output file cannot be opened, 0 for success
      */
     if( optionSequential )
     {
@@ -279,6 +283,8 @@ int main(int argc, char* argv[])
      * 
      * Opens output file and will write encryption data parallelized
      * It will display errors and exit if output file can't be opened
+     * 
+     * @return int Returns 1 if the output file cannot be opened, 0 for success
      */
     if (optionParallel)
     {
@@ -325,6 +331,8 @@ int main(int argc, char* argv[])
 /**
  * @brief Test function to check if 128-bit encryption 
  * is working with a known key and plaintext
+ * 
+ * @return True if encryption test is successful, else false
  */
 bool testKnown128()
 {
