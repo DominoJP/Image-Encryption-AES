@@ -5,6 +5,7 @@
 #include <iostream>
 #include <algorithm>
 #include "AESFunctions.h"
+#include <cstring>
 
 #define BUFFER_SIZE AES_BLOCK_SIZE
 
