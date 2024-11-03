@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 # Directory where input images are stored
 input_dir="InputImages"
 
@@ -7,8 +8,8 @@ input_dir="InputImages"
 to_KB=1000
 
 # Check if AES_Encryption.exe exists in the current directory
-if [[ ! -f AES_Encryption.exe ]]; then
-    echo "Error: AES_Encryption.exe not found in the current directory."
+if [[ ! -f AES_Encryption ]]; then
+    echo "Error: AES_Encryption not found in the current directory."
     exit 1
 fi
 program_name="AES_Encryption"
@@ -70,7 +71,7 @@ for image_file in "$input_dir"/*; do
     echo "Key: $key (Length: $key_length) (AES-$aes_type)"
     
     # Run AES_Encryption.exe for parallel run and sequential run
-    ./AES_Encryption.exe "$image_file" "$key" >> "$output_file"
+    ./AES_Encryption "$image_file" "$key" >> "$output_file"
     echo -e "" >> "$output_file"
     
     echo -e "" >> "$output_file"
