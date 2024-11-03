@@ -180,10 +180,13 @@ double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFil
 //Added GPU
 double aes::encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize)
 {
-    const int CHUNK_SIZE = AES_BLOCK_SIZE * 2000; //finalFileSize;
-    
-    //dim3 threadsPerBlock(16, 16);
-    //dim3 numBlocks();
+    //GPU THREAD BLOCK
+    const int NUM_THREAD_BLOCKS = 1;
+    const int NUM_THREADS_PER_BLOCK = 1024;
+
+    //FILE CHUNK
+    const int BLOCKS_PER_CHUNK = NUM_THREAD_BLOCKS * NUM_THREADS_PER_BLOCK;  //should match appropriate amount of cuda threads available
+    const int CHUNK_SIZE = AES_BLOCK_SIZE * BLOCKS_PER_CHUNK; //finalFileSize;
 
     assert(inFile.is_open() && outFile.is_open());
 
@@ -193,10 +196,23 @@ double aes::encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, ui
     // Allocate buffer for round keys
     // Number of 32-bit key words after expansion
     // equals 4 * (Nr + 1) according to FIPS 197
-    std::vector<uint32_t> expandedKey = std::vector<uint32_t>((numRounds + 1) * 4, 0);
+    size_t expandedKey_SIZE = (numRounds + 1) * 4;
+    std::vector<uint32_t> expandedKey = std::vector<uint32_t>(expandedKey_SIZE, 0);
 
     // Generate keys for each round
     expandKey(expandedKey.data(), numRounds, key, keyWordSize);
+
+    //Allocate Device Memory
+    unsigned char* d_chunk, * d_key;
+    cudaMalloc((void**)d_chunk, CHUNK_SIZE);
+    cudaMalloc((void**)d_key, keyWordSize);
+
+    uint32_t* d_expandedKey;
+    cudaMalloc((void**)d_expandedKey, expandedKey_SIZE);
+
+    //Send GPU Key
+    cudaMemcpy(d_key, key, keyWordSize, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_expandedKey, expandedKey.data(), expandedKey_SIZE ,cudaMemcpyHostToDevice);
 
     // Allocate buffer for reading/writing 128-bit blocks
     std::vector<unsigned char> buffer = std::vector<unsigned char>(CHUNK_SIZE, 0);
@@ -211,6 +227,8 @@ double aes::encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, ui
     double par_start_time;
     double par_end_time;
     double par_time = 0;
+
+    int chunk_index = 0;
     // While there is more data to read
     while (!inFile.eof()) {
         // Read block
@@ -235,9 +253,12 @@ double aes::encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, ui
 
         const long long numBlocks = dataSize / AES_BLOCK_SIZE;
 
+        //copy the chunk into Device
+        cudaMemcpy(d_chunk, buffer.data(), dataSize, cudaMemcpyHostToDevice);
+
         par_start_time = omp_get_wtime();
         //for (int i = 0; i < numBlocks; ++i) {
-        AES_GPU::encryptBlockAES_GPU<<<1, 1>>>(buffer.data(), expandedKey.data(), numRounds, key, keyWordSize);
+        AES_GPU::encryptBlockAES_GPU<<<NUM_THREAD_BLOCKS, NUM_THREADS_PER_BLOCK>>>(d_chunk, d_expandedKey, numRounds, d_key, keyWordSize);
         //}
         par_end_time = omp_get_wtime();
 
