@@ -5,14 +5,14 @@
 #include "AESFunctions.h"
 
 //starts at the chunk and sends each block to a thread to be encrypted
-__global__ void AES_GPU::encryptChunkAES_GPU(unsigned char* chunk, uint32_t* expandedKey, size_t numRounds, uint32_t* key, size_t keyWordSize) {
+__global__ void AES_GPU::encryptChunkAES_GPU(unsigned char* chunk, unsigned int* expandedKey, unsigned __int64 numRounds, unsigned char* key, unsigned __int64 keyWordSize) {
     int i = threadIdx.x;
-    std::size_t offset = std::size_t(i) * AES_BLOCK_SIZE;
+    unsigned __int64 offset = i * AES_BLOCK_SIZE;
 
     encryptBlockAES_GPU(chunk + offset, expandedKey, numRounds, key, keyWordSize);
 }
 
-__device__ void AES_GPU::encryptBlockAES_GPU(unsigned char* buffer, uint32_t* expandedKeys, const std::size_t numRounds, const uint32_t* const key, const std::size_t keySizeWords)
+__device__ void AES_GPU::encryptBlockAES_GPU(unsigned char* buffer, unsigned int* expandedKeys, unsigned __int64 numRounds, unsigned char* key, unsigned __int64 keySizeWords)
 {
     static constexpr int ROUND_KEY_SIZE = 16;
 
@@ -93,7 +93,7 @@ __device__ void AES_GPU::sBoxSubstitution_GPU(unsigned char* const& buffer, cons
 
 __device__ void AES_GPU::shiftRows_GPU(unsigned char* buffer, const std::size_t size, const std::size_t rowCount)
 {
-    if (size % rowCount == 0) {
+    if (size % rowCount != 0) {
         printf("error occured in shiftRows_GPU ");
     }
 
@@ -104,11 +104,11 @@ __device__ void AES_GPU::shiftRows_GPU(unsigned char* buffer, const std::size_t 
         size_t shift = row;
 
         // Max of 3 temps with 4x4 blocks
-        std::vector<unsigned char> temps = std::vector<unsigned char>(AES_BLOCK_COLS - 1, 0);
+        unsigned char* temps = reinterpret_cast<unsigned char*>(AES_BLOCK_COLS - 1, 0);
 
         // Copy Temp Values
         for (size_t col = 0; col < shift; ++col)
-            temps.at(col) = buffer[col * rowCount + row];
+            temps[col] = buffer[col * rowCount + row];
 
         const std::size_t shiftEnd = colCount - shift;
 
@@ -118,7 +118,7 @@ __device__ void AES_GPU::shiftRows_GPU(unsigned char* buffer, const std::size_t 
 
         // Copy temp values to the back of the array
         for (size_t col = shiftEnd; col < colCount; ++col)
-            buffer[col * rowCount + row] = temps.at(col - shiftEnd);
+            buffer[col * rowCount + row] = temps[col - shiftEnd];
     }
 }
 
@@ -132,9 +132,10 @@ __device__ void AES_GPU::mixColumns_GPU(unsigned char* buffer, const size_t size
     };
 
     //assert(size % rowCount == 0);
-    printf("error occured at mixColumns");
+    if (size % rowCount != 0)
+        printf("error occured at mixColumns");
 
-    std::vector<unsigned char> mixed = std::vector<unsigned char>(AES_BLOCK_SIZE, 0);
+    unsigned char* mixed = reinterpret_cast<unsigned char*>(AES_BLOCK_SIZE, 0);
     const size_t colCount = size / rowCount;
     for (size_t col = 0; col < colCount; ++col) {
 
@@ -164,8 +165,10 @@ __device__ void AES_GPU::mixColumns_GPU(unsigned char* buffer, const size_t size
 
     }
 
-    std::copy(mixed.begin(), mixed.end(), buffer);
+    /*std::copy(mixed.begin(), mixed.end(), buffer);*/
+    buffer = mixed;
 }
+
 
 /** Helper function for mixColumns() */
 __device__ unsigned char AES_GPU::galoisMultiplyBy2(unsigned char value)
@@ -180,7 +183,8 @@ __device__ unsigned char AES_GPU::galoisMultiplyBy2(unsigned char value)
 __device__ void AES_GPU::xorByteArray_GPU(unsigned char* buffer, unsigned char* key, std::size_t keySizeBytes)
 {
     //assert(keySizeBytes % sizeof(uint64_t) == 0);
-    printf("error occured at xorByteArray");
+    if (keySizeBytes % sizeof(uint64_t) != 0)
+        printf("error occured at xorByteArray");
 
     // Xor the buffer in as few iterations as possible
     uint64_t* buffer64 = reinterpret_cast<uint64_t*>(buffer);

@@ -5,8 +5,8 @@
 #include <vector>
 
 namespace AES_GPU {
-	__global__ void encryptChunkAES_GPU(unsigned char* chunk, uint32_t* expandedKey, size_t numRounds, uint32_t* key, size_t keyWordSize);
-	__device__ void encryptBlockAES_GPU(unsigned char* buffer, uint32_t* expandedKeys, const std::size_t numRounds, const uint32_t* const key, const std::size_t keySizeWords);
+	__global__ void encryptChunkAES_GPU(unsigned char* chunk, unsigned int* expandedKey, unsigned __int64 numRounds, unsigned char* key, unsigned __int64 keyWordSize);
+	__device__ void encryptBlockAES_GPU(unsigned char* buffer, unsigned int* expandedKeys, unsigned __int64 numRounds, unsigned char* key, unsigned __int64 keySizeWords);
 	__device__ void sBoxSubstitution_GPU(unsigned char* const& buffer, const std::size_t bufferSize);
 	__device__ void shiftRows_GPU(unsigned char* buffer, const std::size_t size, const std::size_t rowCount);
 	__device__ void mixColumns_GPU(unsigned char* buffer, const std::size_t size, const std::size_t rowCount);

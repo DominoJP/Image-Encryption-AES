@@ -151,6 +151,9 @@ int main(int argc, char* argv[])
         std::cout << "Error: could not open file \"" << argv[1] << "\" for read." << std::endl;
         return 1;
     }
+    // Perform a read to trigger file buffer population
+    char testChar;
+    fin.read(&testChar, 1);
     std::cout << "Read File: " << argv[1] << std::endl;
 
     fin.seekg(0, fin.end);
@@ -247,9 +250,9 @@ int main(int argc, char* argv[])
 
         if (!optionDecrypt)
         {
-            parallel_time_total = aes::encryptFileAES_parallel(fin, fout_par, keyWords, keyWordSize);
+            parallel_time_total = aes::encryptFileAES_GPU(fin, fout_par, keyWords, keyWordSize);
         }
-        else
+        else 
         {
             parallel_time_total = aes::decryptFileAES_parallel();  // TODO: add arguments
         }

@@ -197,18 +197,18 @@ double aes::encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, ui
     // Number of 32-bit key words after expansion
     // equals 4 * (Nr + 1) according to FIPS 197
     size_t expandedKey_SIZE = (numRounds + 1) * 4;
-    std::vector<uint32_t> expandedKey = std::vector<uint32_t>(expandedKey_SIZE, 0);
+    std::vector<unsigned int> expandedKey = std::vector<unsigned int>(expandedKey_SIZE, 0);
 
     // Generate keys for each round
     expandKey(expandedKey.data(), numRounds, key, keyWordSize);
 
     //Allocate Device Memory
     unsigned char* d_chunk, * d_key;
-    cudaMalloc((void**)d_chunk, CHUNK_SIZE);
-    cudaMalloc((void**)d_key, keyWordSize);
+    cudaMalloc((void**)&d_chunk, CHUNK_SIZE);
+    cudaMalloc((void**)&d_key, keyWordSize);
 
-    uint32_t* d_expandedKey;
-    cudaMalloc((void**)d_expandedKey, expandedKey_SIZE);
+    unsigned int* d_expandedKey;
+    cudaMalloc((void**)&d_expandedKey, expandedKey_SIZE);
 
     //Send GPU Key
     cudaMemcpy(d_key, key, keyWordSize, cudaMemcpyHostToDevice);
@@ -258,7 +258,7 @@ double aes::encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, ui
 
         par_start_time = omp_get_wtime();
         //for (int i = 0; i < numBlocks; ++i) {
-        AES_GPU::encryptBlockAES_GPU<<<NUM_THREAD_BLOCKS, NUM_THREADS_PER_BLOCK>>>(d_chunk, d_expandedKey, numRounds, d_key, keyWordSize);
+        AES_GPU::encryptChunkAES_GPU<<<NUM_THREAD_BLOCKS, NUM_THREADS_PER_BLOCK>>>(d_chunk, d_expandedKey, numRounds, d_key, keyWordSize);
         //}
         par_end_time = omp_get_wtime();
 

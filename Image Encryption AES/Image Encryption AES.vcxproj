@@ -75,6 +75,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <IncludePath>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\include;$(IncludePath)</IncludePath>
     <UseStructuredOutput>true</UseStructuredOutput>
+    <TargetName>AES_Encryption</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -117,6 +118,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>C:\Program Files\openssl-1.1.0f-vs2017\include64;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -142,25 +144,27 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>C:\Program Files\openssl-1.1.0f-vs2017\lib64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ws2_32.lib;libsslMT.lib;Crypt32.lib;libcryptoMT.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CudaCompile>
       <GPUDebugInfo>true</GPUDebugInfo>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="AESFunctions.cpp" />
-    <ClCompile Include="AESProject.cpp" />
+    <CudaCompile Include="AESFunctions.cpp" />
+    <CudaCompile Include="AESProject.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AESFunctions.h" />
+    <CudaCompile Include="AESFunctions.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="testencrypt.txt" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="AES_GPU.cu" />
-    <None Include="AES_GPU.cuh" />
+    <CudaCompile Include="AES_GPU.cu">
+      <FileType>Document</FileType>
+    </CudaCompile>
+    <CudaCompile Include="AES_GPU.cuh" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
