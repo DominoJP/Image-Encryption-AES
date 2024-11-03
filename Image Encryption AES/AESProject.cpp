@@ -12,6 +12,7 @@
 // Encrypted File Extension
 const std::string EXT_STR_seq = "_seq.enc";
 const std::string EXT_STR_par = "_par.enc";
+const std::string EXT_STR_gpu = "_gpu.enc";
 
 // Function Declarations
 bool testKnown128();
@@ -19,6 +20,7 @@ bool testKnown128();
 //Timings
 double sequential_time_total;
 double parallel_time_total;
+double gpu_time_total;
 
 
 /**
@@ -41,6 +43,7 @@ static void printHelpMsg(void)
     Optional flags:
         -s          Run in sequential mode only.
         -p          Run in parallel mode only.
+        -g          Run in gpu mode as well.
         -d          Run decryption instead of encryption for the specified
                     mode(s).
         -e          Run encryption for the specified modes, as opposed to
@@ -62,6 +65,7 @@ int main(int argc, char* argv[])
     // Declare them here and set their default values.
     bool optionSequential = true;
     bool optionParallel = true;
+    bool optionGPU = false;
     bool optionDecrypt = false;
 
     /*** VALIDATE ARGUMENTS ***/
@@ -133,6 +137,9 @@ int main(int argc, char* argv[])
             case 'e':
                 optionDecrypt = false;
                 break;
+            case 'g':
+                optionGPU = true;
+                break;
             default:
                 printHelpMsg();
                 break;
@@ -143,6 +150,7 @@ int main(int argc, char* argv[])
     std::cout << "Run Mode:" << std::endl;
     std::cout << "  Do Sequential:   " << ((optionSequential) ? "TRUE" : "FALSE") << std::endl;
     std::cout << "  Do Parallel:     " << ((optionParallel) ? "TRUE" : "FALSE") << std::endl;
+    std::cout << "  Do GPU:     " << ((optionGPU) ? "TRUE" : "FALSE") << std::endl;
     std::cout << "  Encryption mode: " << ((optionDecrypt) ? "DECRYPT" : "ENCRYPT") << std::endl;
 
     // Open Input File argv[1]
@@ -151,9 +159,6 @@ int main(int argc, char* argv[])
         std::cout << "Error: could not open file \"" << argv[1] << "\" for read." << std::endl;
         return 1;
     }
-    // Perform a read to trigger file buffer population
-    char testChar;
-    fin.read(&testChar, 1);
     std::cout << "Read File: " << argv[1] << std::endl;
 
     fin.seekg(0, fin.end);
@@ -203,6 +208,7 @@ int main(int argc, char* argv[])
     // Declare output files
     std::string encFile_seq = "";
     std::string encFile_par = "";
+    std::string encFile_gpu = "";
 
     // Run sequential encryption
     if( optionSequential )
@@ -250,7 +256,7 @@ int main(int argc, char* argv[])
 
         if (!optionDecrypt)
         {
-            parallel_time_total = aes::encryptFileAES_GPU(fin, fout_par, keyWords, keyWordSize);
+            parallel_time_total = aes::encryptFileAES_parallel(fin, fout_par, keyWords, keyWordSize);
         }
         else 
         {
@@ -260,6 +266,44 @@ int main(int argc, char* argv[])
         std::cout << "Parallel time: " << parallel_time_total << std::endl;
 
         fout_par.close();
+
+        //reset the input file stream
+        fin.clear();
+        fin.seekg(0, std::ios::beg);
+
+
+    }
+    // Run parallel encryption
+    if (optionGPU)
+    {
+        // Prepare output
+        encFile_gpu = argv[1] + EXT_STR_gpu;  // TODO: different filename for decrypt
+        std::ofstream fout_gpu(encFile_gpu, std::ofstream::binary | std::ofstream::out | std::ofstream::trunc);
+
+        if (!fout_gpu.is_open()) {
+            std::cout << "Error: could not open file \"" << encFile_gpu << "\" for write." << std::endl;
+            return 1;
+        }
+        std::cout << "GPU Write File: " << encFile_gpu << std::endl;
+
+        if (!optionDecrypt)
+        {
+            parallel_time_total = aes::encryptFileAES_GPU(fin, fout_gpu, keyWords, keyWordSize);
+        }
+        else
+        {
+            parallel_time_total = aes::decryptFileAES_parallel();  // TODO: add arguments
+        }
+
+        std::cout << "GPU time: " << gpu_time_total << std::endl;
+
+        fout_gpu.close();
+
+        //reset the input file stream
+        fin.clear();
+        fin.seekg(0, std::ios::beg);
+
+
     }
     /*** End data encryption section ***/
 
@@ -268,8 +312,18 @@ int main(int argc, char* argv[])
 
     if( optionSequential && optionParallel )
     {
-        std::cout << "Do Output Files Match: " << aes::compareFiles(encFile_seq, encFile_par) << std::endl;;
+        std::cout << "Do Output Files Match(Sequential & Parallel): " << aes::compareFiles(encFile_seq, encFile_par) << std::endl;;
     }
+    if( optionGPU && optionParallel )
+    {
+        std::cout << "Do Output Files Match(GPU & Parallel): " << aes::compareFiles(encFile_gpu, encFile_par) << std::endl;;
+    }
+    if( optionSequential && optionGPU )
+    {
+        std::cout << "Do Output Files Match(GPU & Sequential): " << aes::compareFiles(encFile_seq, encFile_gpu) << std::endl;;
+    }
+
+
 
     // Run Encrpytion Test 
     //testKnown(); // TODO: remove
