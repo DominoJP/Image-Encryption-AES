@@ -6,6 +6,8 @@
 #include <algorithm>
 #include "AESFunctions.h"
 
+
+
 #define BUFFER_SIZE AES_BLOCK_SIZE
 
 
@@ -14,6 +16,11 @@ const std::string EXT_STR_seq = "_seq.enc";
 const std::string EXT_STR_par = "_par.enc";
 
 // Function Declarations
+/**
+ * @brief To test AES 128-bit encryption with a known key
+ * 
+ * @return Test passes if true, else false
+ */
 bool testKnown128();
 
 //Timings
@@ -21,9 +28,9 @@ double sequential_time_total;
 double parallel_time_total;
 
 
-/**
-* Prints the CLI usage text to the terminal.
-*/
+
+// Prints the CLI usage text to the terminal.
+
 static void printHelpMsg(void)
 {
     const char* help_msg = R"heredoc(
@@ -52,17 +59,24 @@ static void printHelpMsg(void)
 }
 
 
-/****************
-* Main function
-*****************/
+/****************************************************************
+* MAIN FUNCTION
+* 
+* The function will encrypt or decrypt input files 
+* through using the AES algorithm sequentially or parallelized 
+* depending on the command line arguments that are given.
+* 
+* @param argc Number of command line arguments
+* @param argv Array of command line arguments
+* 
+* @return int Return 1 on error
+*****************************************************************/
 int main(int argc, char* argv[])
 {
     /*** CONFIG VARIABLES ***/
-    // Depending on the command line arguments given, this program may run in a variety of configurations.
-    // Declare them here and set their default values.
-    bool optionSequential = true;
-    bool optionParallel = true;
-    bool optionDecrypt = false;
+    bool optionSequential = true; /**< Flag for sequential mode */
+    bool optionParallel = true; /**< Flag for parallel mode */
+    bool optionDecrypt = false; /**< Flag for decryption mode */
 
     /*** VALIDATE ARGUMENTS ***/
     // Minor improvements maintain backward compatibility with major version number.
@@ -140,6 +154,12 @@ int main(int argc, char* argv[])
         }
     }
 
+    /**
+     * @brief Output selected run mode and encryption and decryption options.
+     * 
+     * Displays what mode the program is run in, sequential or parallel and will perform
+     * encryption or decrpytion based on the command line options that were provided
+     */
     std::cout << "Run Mode:" << std::endl;
     std::cout << "  Do Sequential:   " << ((optionSequential) ? "TRUE" : "FALSE") << std::endl;
     std::cout << "  Do Parallel:     " << ((optionParallel) ? "TRUE" : "FALSE") << std::endl;
@@ -153,6 +173,14 @@ int main(int argc, char* argv[])
     }
     std::cout << "Read File: " << argv[1] << std::endl;
 
+    /**
+    * @brief Calculate size of input file in bytes
+    * 
+    * This will move the file pointer to the end of the file and 
+    * then read position and return file pointer to beginning
+    * 
+    * @param fin Input file stream
+    */
     fin.seekg(0, fin.end);
     const std::streamoff length = fin.tellg();
     fin.seekg(0, fin.beg);
@@ -172,7 +200,15 @@ int main(int argc, char* argv[])
         0x00, 0x00, 0x00, 0x00
     };
 
-    // Copy key (will automatically be padded with 0 if < 256-bits)
+    /** 
+     * @brief Copy key into key buffer
+     * 
+     * This loop will fill key with the values from argv[2] and
+     * if key is shorter than 256 bits it is automatically 
+     * padded with zeros
+     * 
+     * @param argv[2] The key provided by user
+     */
     for (int i = 0; i < argKeyLength; ++i)
         key[i] = argv[2][i];
 
@@ -201,7 +237,12 @@ int main(int argc, char* argv[])
     std::string encFile_seq = "";
     std::string encFile_par = "";
 
-    // Run sequential encryption
+    /**
+     * @brief Run sequential encryption
+     * 
+     * Opens output file and will write encryption data sequentially
+     * It will display errors and exit if output file can't be opened
+     */
     if( optionSequential )
     {
         // Prepare output
@@ -214,6 +255,7 @@ int main(int argc, char* argv[])
         }
         std::cout << "Sequential Write File: " << encFile_seq << std::endl;
 
+        // Senquentially encrypt or decrypt
         if (!optionDecrypt)
         {
             sequential_time_total = aes::encryptFileAES_seq(fin, fout_seq, keyWords, keyWordSize);
@@ -227,12 +269,17 @@ int main(int argc, char* argv[])
 
         fout_seq.close();
 
-        //reset the input file stream
+        // Reset the input file stream to beginning
         fin.clear();
         fin.seekg(0, std::ios::beg);
     }
 
-    // Run parallel encryption
+    /** 
+     * @brief Run parallel encryption
+     * 
+     * Opens output file and will write encryption data parallelized
+     * It will display errors and exit if output file can't be opened
+     */
     if (optionParallel)
     {
         // Prepare output
@@ -245,6 +292,7 @@ int main(int argc, char* argv[])
         }
         std::cout << "Parallel Write File: " << encFile_par << std::endl;
 
+        // Parallelized encrypt or decrypt
         if (!optionDecrypt)
         {
             parallel_time_total = aes::encryptFileAES_parallel(fin, fout_par, keyWords, keyWordSize);
@@ -274,9 +322,10 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-
-// Test function to check if 
-// 128-bit encryption is working
+/**
+ * @brief Test function to check if 128-bit encryption 
+ * is working with a known key and plaintext
+ */
 bool testKnown128()
 {
     // 128-bit example key
@@ -311,7 +360,17 @@ bool testKnown128()
     // equals 4 * (Nr + 1) according to FIPS 197
     uint32_t roundWords[11 * 4] = { 0 };
 
-    // Generate keys for each round
+    /**
+     * Generate keys for each round for AES encryption
+     * 
+     * Expand initial key into round keys for
+     * each round of AES
+     * 
+     * @param roundWords Buffer to store expanded round keys
+     * @param rounds Number of rounds
+     * @param KNOWN_KEY_WORDS Pointer to initial key words
+     * @param KEY_SIZE_WORDS_128 Size of key in words
+     */
     aes::expandKey(roundWords, 10, KNOWN_KEY_WORDS, KEY_SIZE_WORDS_128);
 
     // Print Key
@@ -327,8 +386,17 @@ bool testKnown128()
     aes::printBufferRowMajorOrder(EXPECTED_ENCRYPTION, KEY_SIZE_BYTES_128, 16);
 
 
-    // AES Encryption
-    // 10 rounds using 128-bit key
+    /**
+     * @brief AES Encryption
+     * 
+     * Encrypt data buffer with 10 rounds using 128-bit key
+     * 
+     * @param dataBuffer Data to be encrypted
+     * @param roundWords Array with expanded round keys
+     * @param rounds Number of rounds
+     * @param KNOWN_KEY_WORDS Pointer to 128-bit key
+     * @param KEY_SIZE_WORDS_128 Size of key in words
+     */
     aes::encryptBlockAES(dataBuffer.data(), roundWords, 10, KNOWN_KEY_WORDS, KEY_SIZE_WORDS_128);
 
     // Print dataBuffer after it's encrypted
