@@ -6,7 +6,19 @@
 #include <bitset>
 #include <cassert>
 
-
+/**
+ * @brief Encrypt file sequentially using AES encryption
+ * 
+ * This function will read data from input file and us AES encrypt block-by-block
+ * It will write encrypted data to output file
+ * 
+ * @param inFile Input file stream
+ * @param outFile Output file stream
+ * @param key Pointer to AES key
+ * @param keyWordSize Key size in words
+ * 
+ * @return Total time it takes for encryption to take
+ */
 double aes::encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize)
 {
     static constexpr int CHUNK_SIZE = AES_BLOCK_SIZE * 2000;
@@ -86,10 +98,23 @@ double aes::encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, ui
         outFile.write(reinterpret_cast<char*>(buffer.data()), AES_BLOCK_SIZE);
     }
 
+    // Return total time it took to run encrypting sequentially
     return seq_time;
 }
 
-/** Called by encryptFileAES functions */
+/**
+ * @brief Encrypt file using AES parallelized
+ * 
+ * This function will read input file and encrypt a chunk using AES encryption
+ * and write encrypted data to output
+ * 
+ * @param inFile Input file stream
+ * @param outFile Output file stream
+ * @param key Pointer to AES key
+ * @param keyWordSize Key size in words
+ * 
+ * @return Execution time for encryption
+ */
 double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize)
 {
     const int CHUNK_SIZE = AES_BLOCK_SIZE * 2000; //finalFileSize;
@@ -171,11 +196,22 @@ double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFil
         outFile.write(reinterpret_cast<char*>(buffer.data()), AES_BLOCK_SIZE);
     }
 
+    // Return total time it took to run encrypting parallized
     return par_time;
 }
 
 // TODO: Implement.  Mimic structure of 'encrypt..._seq' function above.
 //       Instead of encryptBlockAES(), call decryptBlockAES()
+/**
+ * @brief Decrypt file using AES sequentially
+ *
+ * @param inFile Input file stream
+ * @param outFile Output file stream
+ * @param key Pointer to AES key
+ * @param keyWordSize Key size in words
+ * 
+ * @return Execution time for decryption
+  */
 double aes::decryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize) {
     static constexpr int CHUNK_SIZE = AES_BLOCK_SIZE * 2000; // Buffer size for processing
 
@@ -218,6 +254,11 @@ double aes::decryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, ui
 
 // TODO: Implement.  Mimic structure of 'encrypt..._parallel' function above.
 //       Instead of encryptBlockAES(), call decryptBlockAES()
+/**
+ * @brief Decrypt file using parallelized
+ * 
+ * @return Execution time for decryption
+ */
 double aes::decryptFileAES_parallel( void )
 {
     double par_time = 0;
@@ -225,10 +266,17 @@ double aes::decryptFileAES_parallel( void )
     return par_time;
 }
 
+
 /**
-* Encrypts one 16-byte block of the file.
+* @brief Encrypts one 16-byte block of the file.
+*
+* @param buffer Block to be encrypted
+* @param expandedKeys Round key array generated from original key
+* @param numRounds Number of AES rounds
+* @param key Original AES key
+* @param keySizeWords Size of AES key in words
 * 
-* See FIPS 197, Section 5.1, Algorithm 1: Cipher()
+* @note See FIPS 197, Section 5.1, Algorithm 1: Cipher()
 */
 void aes::encryptBlockAES(unsigned char* buffer, uint32_t* expandedKeys, const std::size_t numRounds, const uint32_t* const key, const std::size_t keySizeWords)
 {
@@ -278,11 +326,18 @@ void aes::encryptBlockAES(unsigned char* buffer, uint32_t* expandedKeys, const s
 }
 
 
+
 /**
-* Decrypts one 16-byte block of the file.
-*
-* See FIPS 197, Section 5.1, Algorithm 1: Cipher()
-*/
+ * @brief Decrypts one 16-byte block of the file.
+ *
+ * @param buffer Block to be encrypted
+ * @param expandedKeys Round key array generated from original key
+ * @param numRounds Number of AES rounds
+ * @param key Original AES key
+ * @param keySizeWords Size of AES key in words
+ * 
+ * @note See FIPS 197, Section 5.1, Algorithm 1: Cipher()
+ */
 void aes::decryptBlockAES(unsigned char* buffer, uint32_t* expandedKeys, const std::size_t numRounds, const uint32_t* const key, const std::size_t keySizeWords) {
     static constexpr int ROUND_KEY_SIZE = 16;
 
@@ -308,7 +363,14 @@ void aes::decryptBlockAES(unsigned char* buffer, uint32_t* expandedKeys, const s
 }
 
 
-
+/**
+ * @brief Expand AES key into round keys
+ *
+ * @param expandedKeys Array to store the expanded keys
+ * @param numRounds Number of AES rounds
+ * @param key Original AES key
+ * @param keySize Key size in words
+ */
 void aes::expandKey(uint32_t* const& expandedKeys, const std::size_t numRounds, const uint32_t* const& key, std::size_t keySize)
 {
     // RCON Constant Matrix
@@ -391,7 +453,14 @@ std::size_t aes::getNumbRounds(std::size_t keySizeWords)
     }
 }
 
-/** Helper function for expandKey() */
+
+/**
+* @brief Rotate word left by number of bits specified
+* Helper function for expandKey()
+*
+* @param words 32-bit word to rotate
+* @param shiftAmount Number of bits to shift
+*/
 void aes::rotateWordLeft(uint32_t& words, const std::size_t shiftAmount)
 {
     int shift = shiftAmount % sizeof(uint32_t);
@@ -430,10 +499,14 @@ unsigned char aes::galoisMultiplyBy2(unsigned char value)
 }
 
 /**
-* Transform buffer by splitting into columns and performing matrix multiplication.
-*
-* See FIPS 197, Section 5.1.3: MixColumns()
-*/
+ * @brief Transform buffer by splitting into columns and performing matrix multiplication.
+ *
+ * @param buffer Data buffer in AES block
+ * @param size Buffer size
+ * @param rowCount Number of rows in AES block
+ * 
+ * @note See FIPS 197, Section 5.1.3: MixColumns()
+ */
 void aes::mixColumns(unsigned char* buffer, const std::size_t size, const std::size_t rowCount)
 {
     static const unsigned char COL_MIXER[AES_BLOCK_COLS][AES_BLOCK_ROWS] = {
@@ -488,10 +561,14 @@ void aes::shiftCols(uint32_t* const& buffer, const std::size_t rowCount)
 */
 
 /**
-* Transforms buffer by splitting into 4 rows and shifting each row a different amount.
-* 
-* See FIPS 197, Section 5.1.2: ShiftRows()
-*/
+ * @brief Transforms buffer by splitting into 4 rows and shifting each row a different amount.
+ *
+ * @param buffer Data buffer in AES block
+ * @param size Buffer size
+ * @param rowCount Number of rows in AES block
+ * 
+ * @note See FIPS 197, Section 5.1.2: ShiftRows()
+ */
 void aes::shiftRows(unsigned char* buffer, const std::size_t size, const std::size_t rowCount)
 {
     assert(size % rowCount == 0);
@@ -560,6 +637,13 @@ void aes::sBoxSubstitution(unsigned char* const& buffer, const std::size_t buffe
 
 /* OUTPUT FUNCTIONS */
 
+/**
+* @brief Prints buffer in row major order
+*
+* @param buffer Data buffer to print
+* @param size Size of buffer
+* @param colCount Number of columns
+*/
 void aes::printBufferRowMajorOrder(const unsigned char* const& buffer, const std::size_t size, const std::size_t colCount)
 {
     assert(size % colCount == 0);
@@ -573,6 +657,13 @@ void aes::printBufferRowMajorOrder(const unsigned char* const& buffer, const std
     }
 }
 
+/**
+ * @brief Prints buffer in row major order
+ *
+ * @param buffer Data buffer to print
+ * @param size Size of buffer
+ * @param colCount Number of columns
+ */
 void aes::printBufferColMajorOrder(const unsigned char* const& buffer, const std::size_t size, const unsigned int colCount)
 {
     assert(size % colCount == 0);
@@ -586,6 +677,14 @@ void aes::printBufferColMajorOrder(const unsigned char* const& buffer, const std
     }
 }
 
+/**
+ * @brief Compare two files
+ *
+ * @param path1 Path to first file
+ * @param path2 Path to second file
+ *
+ * @return True if files are identical, else false
+ */
 bool aes::compareFiles(const std::string& path1, const std::string& path2)
 {
     std::ifstream f1(path1, std::ifstream::binary | std::ifstream::ate);
