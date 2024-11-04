@@ -1,9 +1,8 @@
 // AESProject.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
-// TODO: Allow for 192/256-bit keys
+
 
 #include <iostream>
-#include <algorithm>
+#include <array>
 #include "AESFunctions.h"
 #include <cstring>
 
@@ -210,8 +209,10 @@ int main(int argc, char* argv[])
      * 
      * @param argv[2] The key provided by user
      */
-    for (int i = 0; i < argKeyLength; ++i)
-        key[i] = argv[2][i];
+    for (size_t i = 0; i < argKeyLength; ++i)
+    {
+        key[i] = static_cast<unsigned char>(argv[2][i]);
+    }
 
     // TODO: Add 3rd parameter to specify key size
     // Size of key in words: KEY_SIZE_BYTES / 32
@@ -351,8 +352,8 @@ bool testKnown128()
         0x1A, 0x02, 0xD7, 0x3A
     };
 
-    // 128-bits of example data
-    std::vector<unsigned char> dataBuffer = {
+    // 128-bits of example data - this is altered by the AES algorithm
+    std::array<unsigned char, KEY_SIZE_BYTES_128> dataBuffer = {
         0x54, 0x77, 0x6F, 0x20,
         0x4F, 0x6E, 0x65, 0x20,
         0x4E, 0x69, 0x6E, 0x65,
@@ -412,8 +413,14 @@ bool testKnown128()
 
     // Check if encrypted dataBuffer and expected encryption data match
     bool matched = true;
-    for (int i = 0; i < KEY_SIZE_BYTES_128; ++i) {
-        if (dataBuffer[i] != EXPECTED_ENCRYPTION[i]) {
+    unsigned char data = 0;
+    unsigned char expected = 0;
+
+    for (unsigned int i = 0; i < KEY_SIZE_BYTES_128; i++) {
+        data = dataBuffer[i];  // TODO: Avoid Spectre mitigation (Warning C5045)
+        expected = EXPECTED_ENCRYPTION[i];
+        if( data != expected )
+        {
             matched = false;
             break;
         }

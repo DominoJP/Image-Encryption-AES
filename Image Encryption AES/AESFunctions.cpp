@@ -346,7 +346,7 @@ void aes::decryptBlockAES(unsigned char* buffer, uint32_t* expandedKeys, const s
     xorByteArray(buffer, reinterpret_cast<unsigned char*>(roundKey), ROUND_KEY_SIZE);
 
     // Perform N-1 rounds in reverse
-    for (int r = numRounds - 1; r > 0; --r) {
+    for (std::size_t r = numRounds - 1; r > 0; --r) {
         //inverseShiftRows(buffer, AES_BLOCK_SIZE, AES_BLOCK_ROWS);
         // inverseSBoxSubstitution(buffer, AES_BLOCK_SIZE);
 

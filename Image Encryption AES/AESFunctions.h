@@ -10,7 +10,7 @@ constexpr auto AES_BLOCK_ROWS = 4; /**< AES block number of rows */
 
 constexpr auto NUM_ROUNDS_128 = 10; /**< Number of rounds for AES-128 */
 constexpr auto KEY_SIZE_BITS_128 = 128; /**< AES-128 in bits key size */
-constexpr auto KEY_SIZE_BYTES_128 = KEY_SIZE_BITS_128 / (sizeof(unsigned char) * 8);
+constexpr unsigned int KEY_SIZE_BYTES_128 = KEY_SIZE_BITS_128 / (sizeof(unsigned char) * 8);
 constexpr auto KEY_SIZE_WORDS_128 = KEY_SIZE_BITS_128 / (sizeof(uint32_t) * 8);
 
 constexpr auto NUM_ROUNDS_192 = 12; /**< Number of rounds for AES-192 */
