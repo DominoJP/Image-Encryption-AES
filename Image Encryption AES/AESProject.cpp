@@ -27,6 +27,33 @@ double sequential_time_total;
 double parallel_time_total;
 
 
+void test()
+{
+    unsigned char KNOWN_KEY[KEY_SIZE_BYTES_128] = {
+        0x00, 0x01, 0x02, 0x03,
+        0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b,
+        0x0c, 0x0d, 0x0e, 0x0f
+    };
+
+    std::cout << "\nBefore:\n";
+    aes::printBufferColMajorOrder(KNOWN_KEY, 16, 4); // keyWordSize * 4 = KEY_SIZE_BYTES
+    std::cout << std::endl;
+
+    aes::sBoxSubstitution(KNOWN_KEY, 16);
+
+    std::cout << "\nAfter Mix:\n";
+    aes::printBufferColMajorOrder(KNOWN_KEY, 16, 4); // keyWordSize * 4 = KEY_SIZE_BYTES
+    std::cout << std::endl;
+
+    aes::inverseSBoxSubstitution(KNOWN_KEY, 16);
+
+    std::cout << "\nAfter Inv Mix:\n";
+    aes::printBufferColMajorOrder(KNOWN_KEY, 16, 4); // keyWordSize * 4 = KEY_SIZE_BYTES
+    std::cout << std::endl;
+    testKnown128();
+}
+
 
 // Prints the CLI usage text to the terminal.
 
@@ -72,6 +99,8 @@ static void printHelpMsg(void)
 *****************************************************************/
 int main(int argc, char* argv[])
 {
+    //test();
+    //return 0;
     /*** CONFIG VARIABLES ***/
     bool optionSequential = true; /**< Flag for sequential mode */
     bool optionParallel = true; /**< Flag for parallel mode */
@@ -304,7 +333,7 @@ int main(int argc, char* argv[])
         }
         else
         {
-            parallel_time_total = aes::decryptFileAES_parallel();  // TODO: add arguments
+            parallel_time_total = aes::decryptFileAES_parallel(fin, fout_par, keyWords, keyWordSize);  // TODO: add arguments
         }
 
         std::cout << "Parallel time: " << parallel_time_total << std::endl;
@@ -358,6 +387,8 @@ bool testKnown128()
         0x4E, 0x69, 0x6E, 0x65,
         0x20, 0x54, 0x77, 0x6F
     };
+
+    std::vector<unsigned char> originalData(dataBuffer);
 
     // Cast KNOWN_KEY into array of 32-bit elements
     const uint32_t* KNOWN_KEY_WORDS = reinterpret_cast<const uint32_t*>(KNOWN_KEY);
@@ -420,7 +451,29 @@ bool testKnown128()
     }
 
     // Print match results
-    std::cout << "\nExpected Encryption and Actual Encryption Match: " << (matched ? "true" : "false") << std::endl;
+    std::cout << "\nExpected Encryption and Actual Encryption Match: " << (matched ? "true" : "false") << std::endl << std::endl;
+
+    // Print data before encryption
+    std::cout << "\nData Before Encryption: \n";
+    aes::printBufferRowMajorOrder(originalData.data(), originalData.size(), 16);
+
+    aes::decryptBlockAES(dataBuffer.data(), roundWords, 10, KNOWN_KEY_WORDS, KEY_SIZE_WORDS_128);
+
+    // Print decrypted data
+    std::cout << "\nData After Decryption: \n";
+    aes::printBufferRowMajorOrder(dataBuffer.data(), dataBuffer.size(), 16);
+
+    // Check if decrypted dataBuffer and original data match
+    matched = true;
+    for (int i = 0; i < KEY_SIZE_BYTES_128; ++i) {
+        if (dataBuffer[i] != originalData[i]) {
+            matched = false;
+            break;
+        }
+    }
+
+    // Print match results
+    std::cout << "\nExpected Decryption and Original Data Match: " << (matched ? "true" : "false") << std::endl << std::endl;
 
     return matched;
 }
