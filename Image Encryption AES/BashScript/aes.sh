@@ -1,20 +1,38 @@
 #!/bin/bash
 
-# Directory where input images are stored
+# Default directory where input images are stored
 input_dir="InputImages"
-
-#conversion from bytes to kilobytes
+# Conversion from bytes to kilobytes
 to_KB=1000
 
-# Check if AES_Encryption.exe exists in the current directory
-if [[ ! -f AES_Encryption.exe ]]; then
-    echo "Error: AES_Encryption.exe not found in the current directory."
+# Default executable path
+exec_path="./AES_Encryption"
+
+# Variables for the run mode
+run_mode="both"
+
+# Parse command-line arguments
+while getopts "d:e:sph" opt; do
+    case $opt in
+        d) input_dir="$OPTARG" ;;
+        e) exec_path="$OPTARG" ;;
+        s) run_mode="sequential" ;;
+        p) run_mode="parallel" ;;
+        h) echo "Usage: $0 [-d input_directory] [-e executable_path] [-s (sequential)] [-p (parallel)]" ; exit 0 ;;
+        *) echo "Usage: $0 [-d input_directory] [-e executable_path] [-s (sequential)] [-p (parallel)]" ; exit 1 ;;
+    esac
+done
+
+# Check if the executable exists in the specified path
+if [[ ! -f "$exec_path" ]]; then
+    echo "Error: AES_Encryption not found at $exec_path."
     exit 1
 fi
+
 program_name="AES_Encryption"
 output_file="${program_name}_output.txt"
 
-#overwrite the output file at the start
+# Overwrite the output file at the start
 > "$output_file"
 
 index=1
@@ -27,22 +45,23 @@ for image_file in "$input_dir"/*; do
     fi
 
     if [[ "$image_file" == *.enc ]]; then
-        echo "skipping this file!"
+        echo "Skipping this file!"
         echo ""
-        continue #skip this iteration if this file is already encrypted
+        continue # Skip this iteration if this file is already encrypted
     fi
+    
     image_info=$(file "$image_file")
     image_size=$(stat -c%s "$image_file")
     image_size=$(expr "$image_size" / $to_KB)
-    
+
     # Generate a random key with length between 16 and 32 characters
     key_128=IQzHDIf5TYdnWw3G
     key_192=dVbX6u6N3ufPqkF00DPZnjc6
     key_256=aXWmcGmZ%SxHKUPCfuqC53JF05s3C3KW
-    
+
     randomIndex=$((RANDOM % 3))
 
-    #select the key based on the random number
+    # Select the key based on the random number
     case $randomIndex in
         0)  
             key="$key_128"
@@ -58,24 +77,28 @@ for image_file in "$input_dir"/*; do
             aes_type=256 ;;
     esac
 
-
-
-    echo -e "---------- "File $index: $image_file done " ----------" >> "$output_file"
-
+    echo -e "---------- File $index: $image_file done ----------" >> "$output_file"
     echo -e "Key: $key" >> "$output_file"
 
     echo "----------Encrypting file $index----------"
     echo "$image_info"
-    echo "size: $image_size KB"
+    echo "Size: $image_size KB"
     echo "Key: $key (Length: $key_length) (AES-$aes_type)"
     
-    # Run AES_Encryption.exe for parallel run and sequential run
-    ./AES_Encryption.exe "$image_file" "$key" >> "$output_file"
+    # Run AES_Encryption with the appropriate mode
+    case $run_mode in
+        "sequential")
+            "$exec_path" -s "$image_file" "$key" >> "$output_file" ;;
+        "parallel")
+            "$exec_path" -p "$image_file" "$key" >> "$output_file" & ;;
+        "both")
+            "$exec_path" "$image_file" "$key" >> "$output_file" ;;
+    esac
+
     echo -e "" >> "$output_file"
     
-    echo -e "" >> "$output_file"
-    wait  # Ensure each file runs both modes sequentially but each file is processed in parallel
-    
+    # Ensure each file runs sequentially but each file is processed in parallel
+    wait 
     echo ""
     ((index++))
 done
