@@ -27,34 +27,6 @@ double sequential_time_total;
 double parallel_time_total;
 
 
-void test()
-{
-    unsigned char KNOWN_KEY[KEY_SIZE_BYTES_128] = {
-        0x00, 0x01, 0x02, 0x03,
-        0x04, 0x05, 0x06, 0x07,
-        0x08, 0x09, 0x0a, 0x0b,
-        0x0c, 0x0d, 0x0e, 0x0f
-    };
-
-    std::cout << "\nBefore:\n";
-    aes::printBufferColMajorOrder(KNOWN_KEY, 16, 4); // keyWordSize * 4 = KEY_SIZE_BYTES
-    std::cout << std::endl;
-
-    aes::sBoxSubstitution(KNOWN_KEY, 16);
-
-    std::cout << "\nAfter Mix:\n";
-    aes::printBufferColMajorOrder(KNOWN_KEY, 16, 4); // keyWordSize * 4 = KEY_SIZE_BYTES
-    std::cout << std::endl;
-
-    aes::inverseSBoxSubstitution(KNOWN_KEY, 16);
-
-    std::cout << "\nAfter Inv Mix:\n";
-    aes::printBufferColMajorOrder(KNOWN_KEY, 16, 4); // keyWordSize * 4 = KEY_SIZE_BYTES
-    std::cout << std::endl;
-    testKnown128();
-}
-
-
 // Prints the CLI usage text to the terminal.
 
 static void printHelpMsg(void)
@@ -99,8 +71,6 @@ static void printHelpMsg(void)
 *****************************************************************/
 int main(int argc, char* argv[])
 {
-    //test();
-    //return 0;
     /*** CONFIG VARIABLES ***/
     bool optionSequential = true; /**< Flag for sequential mode */
     bool optionParallel = true; /**< Flag for parallel mode */

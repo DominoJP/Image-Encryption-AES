@@ -119,8 +119,6 @@ double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFil
 {
     const int CHUNK_SIZE = AES_BLOCK_SIZE * 2000;
 
-    static bool printedNumThreads = false;
-
     assert(inFile.is_open() && outFile.is_open());
 
     // Number of rounds, based on key size
@@ -175,10 +173,6 @@ double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFil
         
 #       pragma omp parallel for
         for (int i = 0; i < numBlocks; ++i) {
-            if (omp_get_thread_num() == 0 && !printedNumThreads) {
-                printedNumThreads = true;
-                std::cout << "Number of Threads: " << std::dec << omp_get_num_threads() << std::endl;
-            }
             encryptBlockAES(buffer.data() + (std::size_t(i) * AES_BLOCK_SIZE), expandedKey.data(), numRounds, key, keyWordSize);
         }
         par_end_time = omp_get_wtime();
