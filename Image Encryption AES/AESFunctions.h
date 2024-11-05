@@ -111,6 +111,12 @@ namespace aes
 	 */
 	void padPKCS7(unsigned char* const& buffer, const std::size_t bufferSize, const unsigned int startPos);
 
+	/**
+	 * @brief Get number of bytes previously padded to buffer
+	 *
+	 * @param buffer Pointer to data buffer to be padded
+	 * @param bufferSized Total size of buffer
+	 */
 	std::size_t getSizeBeforePKCS7Padding(unsigned char* const& buffer, const std::size_t bufferSize);
 
 	/**
@@ -145,6 +151,8 @@ namespace aes
 	 * @param value The byte to be multiplied
 	 * @param multiplier The number to multiply by
 	 * 
+	 * @note This function was written with the help of ChatGPT.
+	 * 
 	 * @return Multiplication result
 	 */
 	unsigned char galoisMultiply(unsigned char value, unsigned char multiplier);
@@ -155,6 +163,8 @@ namespace aes
 	 * @param buffer Data buffer in AES block
 	 * @param size Buffer size
 	 * @param rowCount Number of rows in AES block
+	 * 
+	 * @note This function was written with the help of ChatGPT.
 	 */
 	void mixColumns(unsigned char* buffer, const std::size_t size, const std::size_t rowCount);
 
@@ -164,6 +174,8 @@ namespace aes
 	 * @param buffer Data buffer in AES block
 	 * @param size Buffer size
 	 * @param rowCount Number of rows in AES block
+	 *  
+	 * @note This function was written with the help of ChatGPT.
 	 */
 	void inverseMixColumns(unsigned char* buffer, const std::size_t size, const std::size_t rowCount);
 
