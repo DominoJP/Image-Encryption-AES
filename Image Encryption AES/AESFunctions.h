@@ -68,7 +68,7 @@ namespace aes
 	 * 
 	 * @return Execution time for decryption
 	 */
-	double decryptFileAES_parallel( void );  // TODO  arguments
+	double decryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize);  // TODO  arguments
 
 	/**
 	 * @brief Encrypt a single AES block
@@ -111,6 +111,8 @@ namespace aes
 	 */
 	void padPKCS7(unsigned char* const& buffer, const std::size_t bufferSize, const unsigned int startPos);
 
+	std::size_t getSizeBeforePKCS7Padding(unsigned char* const& buffer, const std::size_t bufferSize);
+
 	/**
 	 * @brief Return number of AES rounds for given key size
 	 *
@@ -138,13 +140,14 @@ namespace aes
 	void xorByteArray(unsigned char* buffer, unsigned char* key, std::size_t keySizeBytes);
 
 	/**
-	 * @brief Peforms Galois mutiplication by 2
+	 * @brief Peforms Galois mutiplication
 	 * 
 	 * @param value The byte to be multiplied
+	 * @param multiplier The number to multiply by
 	 * 
 	 * @return Multiplication result
 	 */
-	unsigned char galoisMultiplyBy2(unsigned char value);	
+	unsigned char galoisMultiply(unsigned char value, unsigned char multiplier);
 
 	/**
 	 * @brief Mix columns in AES block 
@@ -156,6 +159,15 @@ namespace aes
 	void mixColumns(unsigned char* buffer, const std::size_t size, const std::size_t rowCount);
 
 	/**
+	 * @brief Inverse Mix columns in AES block
+	 *
+	 * @param buffer Data buffer in AES block
+	 * @param size Buffer size
+	 * @param rowCount Number of rows in AES block
+	 */
+	void inverseMixColumns(unsigned char* buffer, const std::size_t size, const std::size_t rowCount);
+
+	/**
 	 * @brief Shift rows in AES block
 	 * 
 	 * @param buffer Data buffer in AES block
@@ -163,6 +175,15 @@ namespace aes
 	 * @param rowCount Number of rows in AES block
 	 */
 	void shiftRows(unsigned char* buffer, const std::size_t size, const std::size_t rowCount);
+
+	/**
+	 * @brief Inverse Shift rows in AES block
+	 *
+	 * @param buffer Data buffer in AES block
+	 * @param size Buffer size
+	 * @param rowCount Number of rows in AES block
+	 */
+	void inverseShiftRows(unsigned char* buffer, const std::size_t size, const std::size_t rowCount);
 
 	//void shiftCols(uint32_t* const& buffer, const std::size_t rowCount); UNUSED
 
@@ -173,6 +194,14 @@ namespace aes
 	 * @param bufferSize Size of buffer
 	 */
 	void sBoxSubstitution(unsigned char* const& buffer, const std::size_t bufferSize);
+
+	/**
+	 * @brief Performs Inverse S-box substitution on AES block
+	 *
+	 * @param buffer Data buffer to perform substitution on
+	 * @param bufferSize Size of buffer
+	 */
+	void inverseSBoxSubstitution(unsigned char* const& buffer, const std::size_t bufferSize);
 
 	/**
 	 * @brief Prints buffer in row major order
