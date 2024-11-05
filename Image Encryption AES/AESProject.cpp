@@ -11,8 +11,11 @@
 
 
 // Encrypted File Extension
-const std::string EXT_STR_seq = "_seq.enc";
-const std::string EXT_STR_par = "_par.enc";
+const std::string EXT_STR = ".enc";
+const std::string PAR_STR = "_par";
+const std::string SEQ_STR = "_seq";
+const std::string EXT_STR_SEQ = "_seq.enc";
+const std::string EXT_STR_PAR = "_par.enc";
 
 // Function Declarations
 /**
@@ -21,6 +24,12 @@ const std::string EXT_STR_par = "_par.enc";
  * @return Test passes if true, else false
  */
 bool testKnown128();
+
+std::string removeEncExtension(const std::string& fileName);
+std::string removeParExtension(const std::string& fileName);
+std::string removeSeqExtension(const std::string& fileName);
+std::string getDecryptFileName(const std::string& fileName, bool sequential);
+std::string getEncryptFileName(const std::string& fileName, bool sequential);
 
 //Timings
 double sequential_time_total;
@@ -234,8 +243,8 @@ int main(int argc, char* argv[])
     uint32_t* keyWords = reinterpret_cast<uint32_t*>(key);
 
     // Declare output files
-    std::string encFile_seq = "";
-    std::string encFile_par = "";
+    std::string encFile_seq = argv[1];
+    std::string encFile_par = argv[1];
 
     /**
      * @brief Run sequential encryption
@@ -248,7 +257,12 @@ int main(int argc, char* argv[])
     if( optionSequential )
     {
         // Prepare output
-        encFile_seq = argv[1] + EXT_STR_seq;  // TODO: different filename for decrypt
+        //encFile_seq = argv[1] + EXT_STR_SEQ;  // TODO: different filename for decrypt
+        if (optionDecrypt)
+            encFile_seq = getDecryptFileName(encFile_seq, true);
+        else
+            encFile_seq = getEncryptFileName(encFile_seq, true);
+
         std::ofstream fout_seq(encFile_seq, std::ofstream::binary | std::ofstream::out | std::ofstream::trunc);
 
         if (!fout_seq.is_open()) {
@@ -287,7 +301,12 @@ int main(int argc, char* argv[])
     if (optionParallel)
     {
         // Prepare output
-        encFile_par = argv[1] + EXT_STR_par;  // TODO: different filename for decrypt
+        //encFile_par = argv[1] + EXT_STR_PAR;  // TODO: different filename for decrypt
+        if (optionDecrypt)
+            encFile_par = getDecryptFileName(encFile_par, false);
+        else
+            encFile_par = getEncryptFileName(encFile_par, false);
+
         std::ofstream fout_par(encFile_par, std::ofstream::binary | std::ofstream::out | std::ofstream::trunc);
 
         if (!fout_par.is_open()) {
@@ -325,6 +344,7 @@ int main(int argc, char* argv[])
 
     return 0;
 }
+
 
 /**
  * @brief Test function to check if 128-bit encryption 
@@ -446,4 +466,43 @@ bool testKnown128()
     std::cout << "\nExpected Decryption and Original Data Match: " << (matched ? "true" : "false") << std::endl << std::endl;
 
     return matched;
+}
+
+std::string getDecryptFileName(const std::string& fileName, bool sequential)
+{
+    std::string decryptName = removeSeqExtension(removeParExtension(removeEncExtension(fileName)));
+    std::size_t extFound = decryptName.find_last_of('.');
+
+    if (extFound != std::string::npos)
+        return decryptName.substr(0, extFound) + (sequential ? SEQ_STR : PAR_STR) + decryptName.substr(extFound);
+    return decryptName;
+}
+
+std::string getEncryptFileName(const std::string& fileName, bool sequential)
+{
+    return fileName + (sequential ? EXT_STR_SEQ : EXT_STR_PAR);
+}
+
+std::string removeEncExtension(const std::string& fileName)
+{
+    std::size_t extFound = fileName.find(EXT_STR);
+    if (extFound != std::string::npos && extFound == fileName.size() - EXT_STR.size())
+        return fileName.substr(0, extFound);
+    return fileName;
+}
+
+std::string removeSeqExtension(const std::string& fileName)
+{
+    std::size_t extFound = fileName.find(SEQ_STR);
+    if (extFound != std::string::npos && extFound == fileName.size() - SEQ_STR.size())
+        return fileName.substr(0, extFound);
+    return fileName;
+}
+
+std::string removeParExtension(const std::string& fileName)
+{
+    std::size_t extFound = fileName.find(PAR_STR);
+    if (extFound != std::string::npos && extFound == fileName.size() - PAR_STR.size())
+        return fileName.substr(0, extFound);
+    return fileName;
 }
