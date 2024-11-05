@@ -561,7 +561,16 @@ void aes::xorByteArray(unsigned char* buffer, unsigned char* key, std::size_t ke
     }
 }
 
-/** Helper function for mixColumns() */
+/*
+* @brief GaloisMultiply value by multiplier
+*
+* @param value byte value to be multiplied
+* @param multiplier byte value to multiply by
+* 
+* @note This function was written with the help of ChatGPT.
+* 
+* @return Multiplication result
+*/
 unsigned char aes::galoisMultiply(unsigned char value, unsigned char multiplier) 
 {
     unsigned char result = 0;
@@ -587,6 +596,7 @@ unsigned char aes::galoisMultiply(unsigned char value, unsigned char multiplier)
  * @param rowCount Number of rows in AES block
  * 
  * @note See FIPS 197, Section 5.1.3: MixColumns()
+ * @note This function was written with the help of ChatGPT.
  */
 void aes::mixColumns(unsigned char* buffer, const std::size_t size, const std::size_t rowCount)
 {
@@ -624,7 +634,7 @@ void aes::mixColumns(unsigned char* buffer, const std::size_t size, const std::s
  * @param size Buffer size
  * @param rowCount Number of rows in AES block
  *
- * @note See FIPS 197, Section X.X.X: InvMixColumns()
+ * @note See FIPS 197, Section 5.3.3: InvMixColumns()
  */
 void aes::inverseMixColumns(unsigned char* buffer, const std::size_t size, const std::size_t rowCount)
 {
@@ -709,7 +719,7 @@ void aes::shiftRows(unsigned char* buffer, const std::size_t size, const std::si
  * @param size Buffer size
  * @param rowCount Number of rows in AES block
  *
- * @note See FIPS 197, Section X.X.X: InvShiftRows()
+ * @note See FIPS 197, Section 5.3.1: InvShiftRows()
  */
 void aes::inverseShiftRows(unsigned char* buffer, const std::size_t size, const std::size_t rowCount)
 {
@@ -781,7 +791,7 @@ void aes::sBoxSubstitution(unsigned char* const& buffer, const std::size_t buffe
 /**
 * Transforms each byte of the 16-byte buffer.
 *
-* See FIPS 197 Section X.X.X: InvSubBytes()
+* See FIPS 197 Section 5.3.2: InvSubBytes()
 */
 void aes::inverseSBoxSubstitution(unsigned char* const& buffer, const std::size_t bufferSize)
 {
