@@ -475,6 +475,9 @@ std::string getDecryptFileName(const std::string& fileName, bool sequential)
 
     if (extFound != std::string::npos)
         return decryptName.substr(0, extFound) + (sequential ? SEQ_STR : PAR_STR) + decryptName.substr(extFound);
+
+    if (decryptName == fileName)
+        decryptName += ".dec";
     return decryptName;
 }
 
