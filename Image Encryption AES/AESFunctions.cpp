@@ -117,7 +117,7 @@ double aes::encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, ui
  */
 double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize)
 {
-    const int CHUNK_SIZE = AES_BLOCK_SIZE * 2000; //finalFileSize;
+    const int CHUNK_SIZE = AES_BLOCK_SIZE * 2000;
 
     assert(inFile.is_open() && outFile.is_open());
 
@@ -170,7 +170,7 @@ double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFil
         const long long numBlocks = dataSize / AES_BLOCK_SIZE;
         
         par_start_time = omp_get_wtime();
-
+        
 #       pragma omp parallel for
         for (int i = 0; i < numBlocks; ++i) {
             encryptBlockAES(buffer.data() + (std::size_t(i) * AES_BLOCK_SIZE), expandedKey.data(), numRounds, key, keyWordSize);
@@ -212,7 +212,8 @@ double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFil
  * 
  * @return Execution time for decryption
   */
-double aes::decryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize) {
+double aes::decryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize) 
+{
     static constexpr int CHUNK_SIZE = AES_BLOCK_SIZE * 2000; // Buffer size for processing
 
     // Ensure files are open for reading and writing
@@ -244,6 +245,12 @@ double aes::decryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, ui
             decryptBlockAES(buffer.data() + (std::size_t(i) * AES_BLOCK_SIZE), expandedKey.data(), numRounds, key, keyWordSize);
         }
 
+        // If buffer contains the last 128-bit block in the file
+        if (inFile.eof()) {
+            // Remove padded data
+            dataSize = getSizeBeforePKCS7Padding(buffer.data(), dataSize);
+        }
+
         // Write decrypted data to output file
         outFile.write(reinterpret_cast<char*>(buffer.data()), dataSize);
     }
@@ -259,11 +266,52 @@ double aes::decryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, ui
  * 
  * @return Execution time for decryption
  */
-double aes::decryptFileAES_parallel( void )
+double aes::decryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize)
 {
-    double par_time = 0;
+    static constexpr int CHUNK_SIZE = AES_BLOCK_SIZE * 2000; // Buffer size for processing
 
-    return par_time;
+    // Ensure files are open for reading and writing
+    assert(inFile.is_open());
+    assert(outFile.is_open());
+
+    // Determine the number of AES rounds based on key size
+    std::size_t numRounds = getNumbRounds(keyWordSize);
+
+    // Expand the key for all AES rounds
+    std::vector<uint32_t> expandedKey((numRounds + 1) * 4, 0);
+    expandKey(expandedKey.data(), numRounds, key, keyWordSize);
+
+    // Buffer to store chunks of file data
+    std::vector<unsigned char> buffer(CHUNK_SIZE, 0);
+    std::streamsize dataSize = 0;
+
+    double seq_start_time = omp_get_wtime();  // Start timing the sequential decryption
+
+    // Read through the file in chunks and decrypt each chunk
+    while (!inFile.eof()) {
+        inFile.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
+        dataSize = inFile.gcount();  // Get the size of the data read into buffer
+
+        const long long numBlocks = dataSize / AES_BLOCK_SIZE;
+
+        // Process each 128-bit block in the chunk
+#       pragma omp parallel for
+        for (int i = 0; i < numBlocks; ++i) {
+            decryptBlockAES(buffer.data() + (std::size_t(i) * AES_BLOCK_SIZE), expandedKey.data(), numRounds, key, keyWordSize);
+        }
+
+        // If buffer contains the last 128-bit block in the file
+        if (inFile.eof()) {
+            // Remove padded data
+            dataSize = getSizeBeforePKCS7Padding(buffer.data(), dataSize);
+        }
+
+        // Write decrypted data to output file
+        outFile.write(reinterpret_cast<char*>(buffer.data()), dataSize);
+    }
+
+    double seq_end_time = omp_get_wtime();  // End timing
+    return seq_end_time - seq_start_time;   // Return the time taken for decryption
 }
 
 
@@ -338,27 +386,44 @@ void aes::encryptBlockAES(unsigned char* buffer, uint32_t* expandedKeys, const s
  * 
  * @note See FIPS 197, Section 5.1, Algorithm 1: Cipher()
  */
-void aes::decryptBlockAES(unsigned char* buffer, uint32_t* expandedKeys, const std::size_t numRounds, const uint32_t* const key, const std::size_t keySizeWords) {
+void aes::decryptBlockAES(unsigned char* buffer, uint32_t* expandedKeys, const std::size_t numRounds, const uint32_t* const key, const std::size_t keySizeWords) 
+{
     static constexpr int ROUND_KEY_SIZE = 16;
 
     // Start with the last round key
     uint32_t* roundKey = expandedKeys + numRounds * 4;
+
+    // Initial Xor: Xor the buffer with the last round key 
     xorByteArray(buffer, reinterpret_cast<unsigned char*>(roundKey), ROUND_KEY_SIZE);
 
-    // Perform N-1 rounds in reverse
+    // Perform N-1 rounds in reverse order
     for (int r = numRounds - 1; r > 0; --r) {
-        //inverseShiftRows(buffer, AES_BLOCK_SIZE, AES_BLOCK_ROWS);
-        // inverseSBoxSubstitution(buffer, AES_BLOCK_SIZE);
+        // Inverse Shift Rows
+        inverseShiftRows(buffer, AES_BLOCK_SIZE, AES_BLOCK_ROWS);
 
-        roundKey -= 4;  // Move to the previous round key
+        // Inverse S-Box Substitution
+        inverseSBoxSubstitution(buffer, AES_BLOCK_SIZE);
+
+        // Decrement to current roundKey
+        // Must subtract 4 because each round key is 128 bits
+        roundKey -= 4;  // 4 * 32-bit words = 16 bytes = 128 bits
+
+        // Xor the buffer with the current round key
         xorByteArray(buffer, reinterpret_cast<unsigned char*>(roundKey), ROUND_KEY_SIZE);
 
-        //inverseMixColumns(buffer, AES_BLOCK_SIZE, AES_BLOCK_ROWS);
+        // Inverse Mix Columns
+        inverseMixColumns(buffer, AES_BLOCK_SIZE, AES_BLOCK_ROWS);
     }
 
     // Final round (No InverseMixColumns here)
-    //inverseShiftRows(buffer, AES_BLOCK_SIZE, AES_BLOCK_ROWS);
-    //inverseSBoxSubstitution(buffer, AES_BLOCK_SIZE);
+    
+    // Inverse Shift Rows
+    inverseShiftRows(buffer, AES_BLOCK_SIZE, AES_BLOCK_ROWS);
+
+    // Inverse S-Box Substitution
+    inverseSBoxSubstitution(buffer, AES_BLOCK_SIZE);
+
+    // Final Xor: Xor the buffer with the first round key 
     xorByteArray(buffer, reinterpret_cast<unsigned char*>(expandedKeys), ROUND_KEY_SIZE);
 }
 
@@ -437,6 +502,14 @@ void aes::padPKCS7(unsigned char* const& buffer, const std::size_t bufferSize, c
         buffer[i] = padByte;
 }
 
+std::size_t aes::getSizeBeforePKCS7Padding(unsigned char* const& buffer, const std::size_t bufferSize)
+{
+    if (buffer[bufferSize - 1] == 0)
+        return bufferSize - AES_BLOCK_SIZE;
+    else
+        return bufferSize - buffer[bufferSize - 1];
+}
+
 /** Called by encryptFileAES functions*/
 std::size_t aes::getNumbRounds(std::size_t keySizeWords)
 {
@@ -489,11 +562,19 @@ void aes::xorByteArray(unsigned char* buffer, unsigned char* key, std::size_t ke
 }
 
 /** Helper function for mixColumns() */
-unsigned char aes::galoisMultiplyBy2(unsigned char value) 
+unsigned char aes::galoisMultiply(unsigned char value, unsigned char multiplier) 
 {
-    unsigned char result = value << 1;
-    if (value & 0x80) { // If the most significant bit is set (overflow)
-        result ^= 0x1b; // XOR with the AES irreducible polynomial
+    unsigned char result = 0;
+    for (int i = 0; i < 8; i++) {
+        if (multiplier & 1) {
+            result ^= value;
+        }
+        bool overflow = value & 0x80;
+        value <<= 1;
+        if (overflow) {
+            value ^= 0x1b; // XOR with AES irreducible polynomial if overflow occurs
+        }
+        multiplier >>= 1;
     }
     return result;
 }
@@ -518,34 +599,57 @@ void aes::mixColumns(unsigned char* buffer, const std::size_t size, const std::s
 
     assert(size % rowCount == 0);
 
-    std::vector<unsigned char> mixed = std::vector<unsigned char>(AES_BLOCK_SIZE, 0);
+    std::vector<unsigned char> mixed(AES_BLOCK_SIZE, 0);
     const std::size_t colCount = size / rowCount;
     for (std::size_t col = 0; col < colCount; ++col) {
 
         for (std::size_t mixerRow = 0; mixerRow < AES_BLOCK_ROWS; ++mixerRow) {
             unsigned char mixedValue = 0;  // Temporary value to accumulate results
             for (std::size_t mixerCol = 0; mixerCol < AES_BLOCK_COLS; ++mixerCol) {
-                unsigned char temp = 0;
                 unsigned char value = buffer[col * rowCount + mixerCol];
-                switch (COL_MIXER[mixerRow][mixerCol]) {
-                case 1:
-                    temp = value;
-                    break;
-                case 2:
-                    temp = galoisMultiplyBy2(value);
-                    break;
-                case 3:
-                    temp = galoisMultiplyBy2(value) ^ value;
-                    break;
-                default:
-                    std::cout << "Error: Invalid Constant Array!" << std::endl;
-                    return;
-                }
-                mixedValue ^= temp;
+                mixedValue ^= galoisMultiply(value, COL_MIXER[mixerRow][mixerCol]);
             }
             mixed[col * rowCount + mixerRow] = mixedValue;
         }
 
+    }
+
+    std::copy(mixed.begin(), mixed.end(), buffer);
+}
+
+/**
+ * @brief Transform buffer by splitting into columns and performing matrix multiplication.
+ *
+ * @param buffer Data buffer in AES block
+ * @param size Buffer size
+ * @param rowCount Number of rows in AES block
+ *
+ * @note See FIPS 197, Section X.X.X: InvMixColumns()
+ */
+void aes::inverseMixColumns(unsigned char* buffer, const std::size_t size, const std::size_t rowCount)
+{
+    static const unsigned char INV_COL_MIXER[AES_BLOCK_COLS][AES_BLOCK_ROWS] = {
+           {0x0E, 0x0B, 0x0D, 0x09},
+           {0x09, 0x0E, 0x0B, 0x0D},
+           {0x0D, 0x09, 0x0E, 0x0B},
+           {0x0B, 0x0D, 0x09, 0x0E},
+    };
+
+    assert(size % rowCount == 0);
+
+    std::vector<unsigned char> mixed(AES_BLOCK_SIZE, 0);
+    const std::size_t colCount = size / rowCount;
+    for (std::size_t col = 0; col < colCount; ++col) {
+
+        for (std::size_t mixerRow = 0; mixerRow < AES_BLOCK_ROWS; ++mixerRow) {
+            unsigned char mixedValue = 0;
+            for (std::size_t mixerCol = 0; mixerCol < AES_BLOCK_COLS; ++mixerCol) {
+                unsigned char value = buffer[col * rowCount + mixerCol];
+                unsigned char temp = galoisMultiply(value, INV_COL_MIXER[mixerRow][mixerCol]);
+                mixedValue ^= temp;
+            }
+            mixed[col * rowCount + mixerRow] = mixedValue;
+        }
     }
 
     std::copy(mixed.begin(), mixed.end(), buffer);
@@ -599,6 +703,45 @@ void aes::shiftRows(unsigned char* buffer, const std::size_t size, const std::si
 }
 
 /**
+ * @brief Transforms buffer by splitting into 4 rows and shifting each row a different amount.
+ *
+ * @param buffer Data buffer in AES block
+ * @param size Buffer size
+ * @param rowCount Number of rows in AES block
+ *
+ * @note See FIPS 197, Section X.X.X: InvShiftRows()
+ */
+void aes::inverseShiftRows(unsigned char* buffer, const std::size_t size, const std::size_t rowCount)
+{
+    assert(size % rowCount == 0);
+    
+
+    const std::size_t colCount = size / rowCount;
+
+    for (std::size_t row = 1; row < rowCount; ++row) {
+        std::size_t shift = row;
+
+        // Max of 3 temps with 4x4 blocks
+        std::vector<unsigned char> temps = std::vector<unsigned char>(AES_BLOCK_COLS - 1, 0);
+
+        // Copy Temp Values
+        for (std::size_t col = 0; col < shift; ++col)
+            temps.at(shift - 1 - col) = buffer[(colCount - 1 - col) * rowCount + row];
+
+
+        const std::size_t shiftEnd = colCount - shift;
+
+        // Shift old values right
+        for (int col = shiftEnd - 1; col >= 0; --col)
+            buffer[(col + shift) * rowCount + row] = buffer[col * rowCount + row];
+
+        // Copy temp values to the back of the array
+        for (std::size_t col = 0; col < shift; ++col)
+            buffer[col * rowCount + row] = temps.at(col);
+    }
+}
+
+/**
 * Transforms each byte of the 16-byte buffer.
 * 
 * See FIPS 197 Section 5.1.1: SubBytes()
@@ -623,6 +766,44 @@ void aes::sBoxSubstitution(unsigned char* const& buffer, const std::size_t buffe
         {0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf},
         {0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16},
     };
+
+    for (std::size_t i = 0; i < bufferSize; ++i) {
+        // Least Significant Nibble
+        int lsn = buffer[i] & 0x0F;
+
+        // Most Significant Nibble
+        int msn = (buffer[i] >> 4) & 0x0F;
+
+        buffer[i] = sBox[msn][lsn];
+    }
+}
+
+/**
+* Transforms each byte of the 16-byte buffer.
+*
+* See FIPS 197 Section X.X.X: InvSubBytes()
+*/
+void aes::inverseSBoxSubstitution(unsigned char* const& buffer, const std::size_t bufferSize)
+{
+    static const unsigned char sBox[AES_BLOCK_SIZE][AES_BLOCK_SIZE] = {
+        {0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb},
+        {0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb},
+        {0x54, 0x7b, 0x94, 0x32, 0xa6, 0xc2, 0x23, 0x3d, 0xee, 0x4c, 0x95, 0x0b, 0x42, 0xfa, 0xc3, 0x4e},
+        {0x08, 0x2e, 0xa1, 0x66, 0x28, 0xd9, 0x24, 0xb2, 0x76, 0x5b, 0xa2, 0x49, 0x6d, 0x8b, 0xd1, 0x25},
+        {0x72, 0xf8, 0xf6, 0x64, 0x86, 0x68, 0x98, 0x16, 0xd4, 0xa4, 0x5c, 0xcc, 0x5d, 0x65, 0xb6, 0x92},
+        {0x6c, 0x70, 0x48, 0x50, 0xfd, 0xed, 0xb9, 0xda, 0x5e, 0x15, 0x46, 0x57, 0xa7, 0x8d, 0x9d, 0x84},
+        {0x90, 0xd8, 0xab, 0x00, 0x8c, 0xbc, 0xd3, 0x0a, 0xf7, 0xe4, 0x58, 0x05, 0xb8, 0xb3, 0x45, 0x06},
+        {0xd0, 0x2c, 0x1e, 0x8f, 0xca, 0x3f, 0x0f, 0x02, 0xc1, 0xaf, 0xbd, 0x03, 0x01, 0x13, 0x8a, 0x6b},
+        {0x3a, 0x91, 0x11, 0x41, 0x4f, 0x67, 0xdc, 0xea, 0x97, 0xf2, 0xcf, 0xce, 0xf0, 0xb4, 0xe6, 0x73},
+        {0x96, 0xac, 0x74, 0x22, 0xe7, 0xad, 0x35, 0x85, 0xe2, 0xf9, 0x37, 0xe8, 0x1c, 0x75, 0xdf, 0x6e},
+        {0x47, 0xf1, 0x1a, 0x71, 0x1d, 0x29, 0xc5, 0x89, 0x6f, 0xb7, 0x62, 0x0e, 0xaa, 0x18, 0xbe, 0x1b},
+        {0xfc, 0x56, 0x3e, 0x4b, 0xc6, 0xd2, 0x79, 0x20, 0x9a, 0xdb, 0xc0, 0xfe, 0x78, 0xcd, 0x5a, 0xf4},
+        {0x1f, 0xdd, 0xa8, 0x33, 0x88, 0x07, 0xc7, 0x31, 0xb1, 0x12, 0x10, 0x59, 0x27, 0x80, 0xec, 0x5f},
+        {0x60, 0x51, 0x7f, 0xa9, 0x19, 0xb5, 0x4a, 0x0d, 0x2d, 0xe5, 0x7a, 0x9f, 0x93, 0xc9, 0x9c, 0xef},
+        {0xa0, 0xe0, 0x3b, 0x4d, 0xae, 0x2a, 0xf5, 0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61},
+        {0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d},
+    };
+    
 
     for (std::size_t i = 0; i < bufferSize; ++i) {
         // Least Significant Nibble
