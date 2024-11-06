@@ -42,7 +42,7 @@ double aes::encryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, ui
     double seq_start_time;
     double seq_end_time;
     double seq_time = 0;
-    
+
     // While there is more data to read
     while (!inFile.eof()) {
         // Read chunk
@@ -147,7 +147,7 @@ double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFil
         assert(dataSize % AES_BLOCK_SIZE == 0);
 
         const long long numBlocks = dataSize / AES_BLOCK_SIZE;
-        
+
         par_start_time = omp_get_wtime();
 
 #       pragma omp parallel for
@@ -155,7 +155,7 @@ double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFil
             encryptBlockAES(buffer.data() + (std::size_t(i) * AES_BLOCK_SIZE), expandedKey.data(), numRounds, key, keyWordSize);
         }
         par_end_time = omp_get_wtime();
-        
+
         par_time += par_end_time - par_start_time;
 
         // Write encrypted data to new file.
@@ -178,17 +178,10 @@ double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFil
     return par_time;
 }
 
-//Added GPU
 double aes::encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize)
 {
-
-    //GPU THREAD GRID DEFINITION
-    const int NUM_THREAD_BLOCKS = 1;
-    const int NUM_THREADS_PER_BLOCK = 1024;     //standard number of blocks
-
-    //FILE CHUNK
-    const int BLOCKS_PER_CHUNK = NUM_THREAD_BLOCKS * NUM_THREADS_PER_BLOCK;  //should match appropriate amount of cuda threads available
-    const int CHUNK_SIZE = AES_BLOCK_SIZE * BLOCKS_PER_CHUNK; //finalFileSize;
+    const int CHUNK_SIZE = AES_BLOCK_SIZE * 512; //finalFileSize;
+    //Calculate Thread Block Size and number of Thread Blocks in a grid.
 
     assert(inFile.is_open() && outFile.is_open());
 
@@ -198,23 +191,10 @@ double aes::encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, ui
     // Allocate buffer for round keys
     // Number of 32-bit key words after expansion
     // equals 4 * (Nr + 1) according to FIPS 197
-    size_t expandedKey_SIZE = (numRounds + 1) * 4;
-    std::vector<unsigned int> expandedKey = std::vector<unsigned int>(expandedKey_SIZE, 0);
+    std::vector<uint32_t> expandedKey = std::vector<uint32_t>((numRounds + 1) * 4, 0);
 
     // Generate keys for each round
     expandKey(expandedKey.data(), numRounds, key, keyWordSize);
-
-    //Allocate Device Memory
-    unsigned char* d_chunk, * d_key;
-    cudaMalloc((void**)&d_chunk, CHUNK_SIZE);
-    cudaMalloc((void**)&d_key, keyWordSize);
-
-    unsigned int* d_expandedKey;
-    cudaMalloc((void**)&d_expandedKey, expandedKey_SIZE);
-
-    //Send GPU Key
-    cudaMemcpy(d_key, key, keyWordSize, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_expandedKey, expandedKey.data(), expandedKey.size()*4, cudaMemcpyHostToDevice);
 
     // Allocate buffer for reading/writing 128-bit blocks
     std::vector<unsigned char> buffer = std::vector<unsigned char>(CHUNK_SIZE, 0);
@@ -226,11 +206,86 @@ double aes::encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, ui
     const std::streamsize fileSize = inFile.tellg();
     inFile.seekg(0, inFile.beg);
 
+    //memcpy to device stage
+
+    //buffer.data(), expandedKey.data(), numRounds, key, keyWordSize
+
+        //chunk -> buffer.data()
+    unsigned char* d_chunk;
+    cudaError_t error = cudaMalloc((void**)&d_chunk, CHUNK_SIZE);
+    cudaDeviceSynchronize();  // Synchronize to catch any error immediately
+    if (error != cudaSuccess) {
+        printf("CUDA error after CudaMalloc d_chunk: %s\n", cudaGetErrorString(error));
+    }
+    //will memCpy in while loop
+
+
+    //Key and Expanded Key cudaMalloc
+    //*******************************
+    uint32_t* d_key, *d_expandedKeys;
+    error = cudaMalloc((void**)&d_expandedKeys, expandedKey.size() * sizeof(size_t));
+    cudaDeviceSynchronize();  // Synchronize to catch any error immediately
+    if (error != cudaSuccess) {
+        printf("CUDA error after CudaMalloc d_expandedKeys: %s\n", cudaGetErrorString(error));
+    }
+    error = cudaMalloc((void**)&d_key, keyWordSize * 4);
+    cudaDeviceSynchronize();  // Synchronize to catch any error immediately
+    if (error != cudaSuccess) {
+        printf("CUDA error after CudaMalloc d_key: %s\n", cudaGetErrorString(error));
+    }
+
+    //  Key Memcpy
+    //*******************************
+    error = cudaMemcpy(d_key, key, keyWordSize * 4, cudaMemcpyHostToDevice);
+    cudaDeviceSynchronize();  // Synchronize to catch any error immediately
+    if (error != cudaSuccess) {
+        printf("CUDA error after cudaMemcpy: key %s\n", cudaGetErrorString(error));
+    }
+    
+    //  Expanded Keys Memcpy
+    //*******************************
+    error = cudaMemcpy(d_key, key, keyWordSize * 4, cudaMemcpyHostToDevice);
+    cudaDeviceSynchronize();  // Synchronize to catch any error immediately
+    if (error != cudaSuccess) {
+        printf("CUDA error after cudaMemcpy: key %s\n", cudaGetErrorString(error));
+    }
+
+
+    // NumRounds and KeyWord Size cudaMalloc
+    // Dont need to send over single scalar values or malloc to GPU can send straight to Kernel
+    //*******************************
+    //size_t *d_numRounds, * d_keyWordSize;
+    //error = cudaMalloc((void**)&d_numRounds, sizeof(unsigned long long));
+    //cudaDeviceSynchronize();  // Synchronize to catch any error immediately
+    //if (error != cudaSuccess) {
+    //    printf("CUDA error after CudaMalloc d_numRounds: %s\n", cudaGetErrorString(error));
+    //}
+
+    //error = cudaMalloc((void**)&d_keyWordSize, sizeof(size_t));
+    //cudaDeviceSynchronize();  // Synchronize to catch any error immediately
+    //if (error != cudaSuccess) {
+    //    printf("CUDA error after CudaMalloc d_keyWordSize: %s\n", cudaGetErrorString(error));
+    //}
+
+    ////NumRounds Memcpy
+    //error = cudaMemcpy(d_numRounds, reinterpret_cast<size_t*>(numRounds), sizeof(unsigned long long), cudaMemcpyHostToDevice);
+    //cudaDeviceSynchronize();  // Synchronize to catch any error immediately
+    //if (error != cudaSuccess) {
+    //    printf("CUDA error after cudaMemcpy: d_numRounds %s\n", cudaGetErrorString(error));
+    //}
+    //
+    ////KeyWordSize Memcpy
+    //error = cudaMemcpy(d_keyWordSize, reinterpret_cast<size_t*>(keyWordSize * 4), sizeof(size_t), cudaMemcpyHostToDevice);
+    //cudaDeviceSynchronize();  // Synchronize to catch any error immediately
+    //if (error != cudaSuccess) {
+    //    printf("CUDA error after cudaMemcpy: d_keyWordSize %s\n", cudaGetErrorString(error));
+    //}
+    
+
+
     double par_start_time;
     double par_end_time;
     double par_time = 0;
-
-    int chunk_index = 0;
     // While there is more data to read
     while (!inFile.eof()) {
         // Read block
@@ -255,22 +310,26 @@ double aes::encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, ui
 
         const long long numBlocks = dataSize / AES_BLOCK_SIZE;
 
-        //copy the chunk into Device
-        cudaMemcpy(d_chunk, buffer.data(), buffer.size() * 4, cudaMemcpyHostToDevice);
+        //memCpy
+        error = cudaMemcpy(d_chunk, reinterpret_cast<unsigned char*>(buffer.data()), buffer.size() * sizeof(char), cudaMemcpyHostToDevice);
+        cudaDeviceSynchronize();  // Synchronize to catch any error immediately
+        if (error != cudaSuccess) {
+            printf("CUDA error after cudaMemcpy: d_chunk %s\n", cudaGetErrorString(error));
+        }
 
         par_start_time = omp_get_wtime();
-        //for (int i = 0; i < numBlocks; ++i) {
-        AES_GPU::encryptChunkAES_GPU<<<NUM_THREAD_BLOCKS, NUM_THREADS_PER_BLOCK>>>(d_chunk, d_expandedKey, numRounds, d_key, keyWordSize);
-        // wait for all threads to finish
-        cudaDeviceSynchronize();
 
-        cudaMemcpy(buffer.data(), d_chunk, buffer.size() * 4, cudaMemcpyDeviceToHost);
-
-        //}
+        AES_GPU::encryptChunkAES_GPU<<<1,CHUNK_SIZE>>>(d_chunk, d_expandedKeys, numRounds, d_key, keyWordSize);
+        
         par_end_time = omp_get_wtime();
 
         par_time += par_end_time - par_start_time;
-        chunk_index++;
+
+        error = cudaMemcpy(reinterpret_cast<unsigned char*>(buffer.data()), d_chunk, buffer.size() * sizeof(char), cudaMemcpyDeviceToHost);
+        cudaDeviceSynchronize();  // Synchronize to catch any error immediately
+        if (error != cudaSuccess) {
+            printf("CUDA error after cudaMemcpy: d_chunk to host%s\n", cudaGetErrorString(error));
+        }
 
         // Write encrypted data to new file.
         outFile.write(reinterpret_cast<char*>(buffer.data()), dataSize);
@@ -291,6 +350,155 @@ double aes::encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, ui
 
     return par_time;
 }
+
+//Added GPU
+//double aes::encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize)
+//{
+//
+//    //GPU THREAD GRID DEFINITION
+//    const int NUM_THREAD_BLOCKS = 1;
+//    const int NUM_THREADS_PER_BLOCK = 1024;     //standard number of blocks
+//
+//    //FILE CHUNK
+//    const int BLOCKS_PER_CHUNK = NUM_THREAD_BLOCKS * NUM_THREADS_PER_BLOCK;  //should match appropriate amount of cuda threads available
+//    const int CHUNK_SIZE = AES_BLOCK_SIZE * BLOCKS_PER_CHUNK; //finalFileSize;
+//
+//    assert(inFile.is_open() && outFile.is_open());
+//
+//    // Number of rounds, based on key size
+//    std::size_t numRounds = getNumbRounds(keyWordSize);
+//
+//    // Allocate buffer for round keys
+//    // Number of 32-bit key words after expansion
+//    // equals 4 * (Nr + 1) according to FIPS 197
+//    size_t expandedKey_SIZE = (numRounds + 1) * 4;
+//    std::vector<unsigned int> expandedKey = std::vector<unsigned int>(expandedKey_SIZE, 0);
+//
+//    // Generate keys for each round
+//    expandKey(expandedKey.data(), numRounds, key, keyWordSize);
+//
+//    //Allocate Device Memory
+//    unsigned char* d_chunk, * d_key;
+//
+//    cudaError_t error = cudaMalloc((void**)&d_chunk, CHUNK_SIZE);
+//    if (error != cudaSuccess) {
+//        printf("CUDA error after CudaMalloc: %s\n", cudaGetErrorString(error));
+//    }
+//
+//
+//
+//    cudaError_t error = cudaMalloc((void**)&d_key, keyWordSize * sizeof(char));
+//    if (error != cudaSuccess) {
+//        printf("CUDA error after CudaMalloc: %s\n", cudaGetErrorString(error));
+//    }
+//
+//
+//    unsigned int* d_expandedKey;
+//
+//    cudaError_t error = cudaMalloc((void**)&d_expandedKey, expandedKey_SIZE);
+//    if (error != cudaSuccess) {
+//        printf("CUDA error after CudaMalloc: %s\n", cudaGetErrorString(error));
+//    }
+//
+//
+//    //Send GPU Key
+//
+//    cudaError_t error = cudaMemcpy(d_key, key, keyWordSize, cudaMemcpyHostToDevice);
+//    if (error != cudaSuccess) {
+//        printf("CUDA error after cudaMemcpy: %s\n", cudaGetErrorString(error));
+//    }
+//
+//
+//
+//    cudaError_t error = cudaMemcpy(d_expandedKey, reinterpret_cast<char*>(expandedKey.data()), expandedKey.size() * 4, cudaMemcpyHostToDevice);
+//    if (error != cudaSuccess) {
+//        printf("CUDA error after cudaMemcpy: %s\n", cudaGetErrorString(error));
+//    }
+//
+//
+//    // Allocate buffer for reading/writing 128-bit blocks
+//    std::vector<unsigned char> buffer = std::vector<unsigned char>(CHUNK_SIZE, 0);
+//
+//    // Size of data read into buffer
+//    std::streamsize dataSize = 0;
+//
+//    inFile.seekg(0, inFile.end);
+//    const std::streamsize fileSize = inFile.tellg();
+//    inFile.seekg(0, inFile.beg);
+//
+//    double par_start_time;
+//    double par_end_time;
+//    double par_time = 0;
+//
+//    int chunk_index = 0;
+//    // While there is more data to read
+//    while (!inFile.eof()) {
+//        // Read block
+//        inFile.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
+//
+//        // Get size of data read
+//        dataSize = inFile.gcount();
+//
+//        // If the last block is less than 128-bits pad it.
+//        if (dataSize % AES_BLOCK_SIZE != 0) {
+//            const std::streampos endOfLastBlock = dataSize - dataSize % AES_BLOCK_SIZE;
+//            const unsigned int sizeOfLastBlock = dataSize % AES_BLOCK_SIZE;
+//            aes::padPKCS7(buffer.data() + endOfLastBlock, AES_BLOCK_SIZE, sizeOfLastBlock);
+//            dataSize += AES_BLOCK_SIZE - sizeOfLastBlock;
+//
+//            // Debug Print
+//            //std::cout << "Padded Last Block: \n";
+//            //printBufferColMajorOrder(buffer.data() + endOfLastBlock, AES_BLOCK_SIZE, AES_BLOCK_COLS); 
+//        }
+//
+//        assert(dataSize % AES_BLOCK_SIZE == 0);
+//
+//        const long long numBlocks = dataSize / AES_BLOCK_SIZE;
+//
+//        //copy the chunk into Device
+//
+//        cudaError_t error = cudaMemcpy(d_chunk, reinterpret_cast<unsigned char*>(buffer.data()), buffer.size() * sizeof(char), cudaMemcpyHostToDevice);
+//        if (error != cudaSuccess) {
+//            printf("CUDA error after cudaMemcpy: %s\n", cudaGetErrorString(error));
+//        }
+//
+//        par_start_time = omp_get_wtime();
+//        //for (int i = 0; i < numBlocks; ++i) {
+//        AES_GPU::encryptChunkAES_GPU << <NUM_THREAD_BLOCKS, NUM_THREADS_PER_BLOCK >> > (d_chunk, d_expandedKey, numRounds, d_key, keyWordSize);
+//        // wait for all threads to finish
+//        cudaDeviceSynchronize();
+//
+//
+//        cudaError_t error = cudaMemcpy(reinterpret_cast<char*>(buffer.data()), d_chunk, buffer.size() * 4, cudaMemcpyDeviceToHost);
+//        if (error != cudaSuccess) {
+//            printf("CUDA error after cudaMemcpy: %s\n", cudaGetErrorString(error));
+//        }
+//
+//        //}
+//        par_end_time = omp_get_wtime();
+//
+//        par_time += par_end_time - par_start_time;
+//        chunk_index++;
+//
+//        // Write encrypted data to new file.
+//        outFile.write(reinterpret_cast<char*>(buffer.data()), dataSize);
+//    }
+//
+//    // If the entire file was divisible 
+//    // by 128-bits then add one extra
+//    // padded block per PKCS7 standard
+//    if (fileSize % AES_BLOCK_SIZE == 0) {
+//        aes::padPKCS7(buffer.data(), AES_BLOCK_SIZE, 0);
+//
+//        // AES Encryption
+//        encryptBlockAES(buffer.data(), expandedKey.data(), numRounds, key, keyWordSize);
+//
+//        // Write encrypted data to new file.
+//        outFile.write(reinterpret_cast<char*>(buffer.data()), AES_BLOCK_SIZE);
+//    }
+//
+//    return par_time;
+//}
 
 // TODO: Implement.  Mimic structure of 'encrypt..._seq' function above.
 //       Instead of encryptBlockAES(), call decryptBlockAES()
@@ -336,7 +544,7 @@ double aes::decryptFileAES_seq(std::ifstream& inFile, std::ofstream& outFile, ui
 
 // TODO: Implement.  Mimic structure of 'encrypt..._parallel' function above.
 //       Instead of encryptBlockAES(), call decryptBlockAES()
-double aes::decryptFileAES_parallel( void )
+double aes::decryptFileAES_parallel(void)
 {
     double par_time = 0;
 
@@ -345,7 +553,7 @@ double aes::decryptFileAES_parallel( void )
 
 /**
 * Encrypts one 16-byte block of the file.
-* 
+*
 * See FIPS 197, Section 5.1, Algorithm 1: Cipher()
 */
 void aes::encryptBlockAES(unsigned char* buffer, uint32_t* expandedKeys, const std::size_t numRounds, const uint32_t* const key, const std::size_t keySizeWords)
@@ -497,15 +705,15 @@ void aes::padPKCS7(unsigned char* const& buffer, const std::size_t bufferSize, c
 std::size_t aes::getNumbRounds(std::size_t keySizeWords)
 {
     switch (keySizeWords) {
-        case KEY_SIZE_WORDS_128:
-            return NUM_ROUNDS_128;
-        case KEY_SIZE_WORDS_192:
-            return NUM_ROUNDS_192;
-        case KEY_SIZE_WORDS_256:
-            return NUM_ROUNDS_256;
-            break;
-        default:
-            return 0;
+    case KEY_SIZE_WORDS_128:
+        return NUM_ROUNDS_128;
+    case KEY_SIZE_WORDS_192:
+        return NUM_ROUNDS_192;
+    case KEY_SIZE_WORDS_256:
+        return NUM_ROUNDS_256;
+        break;
+    default:
+        return 0;
     }
 }
 
@@ -534,7 +742,7 @@ void aes::xorByteArray(unsigned char* buffer, unsigned char* key, std::size_t ke
     }
 
 
-    
+
 
     // Xor the buffer in as few iterations as possible
     uint64_t* buffer64 = reinterpret_cast<uint64_t*>(buffer);
@@ -546,7 +754,7 @@ void aes::xorByteArray(unsigned char* buffer, unsigned char* key, std::size_t ke
 }
 
 /** Helper function for mixColumns() */
-unsigned char aes::galoisMultiplyBy2(unsigned char value) 
+unsigned char aes::galoisMultiplyBy2(unsigned char value)
 {
     unsigned char result = value << 1;
     if (value & 0x80) { // If the most significant bit is set (overflow)
@@ -615,7 +823,7 @@ void aes::shiftCols(uint32_t* const& buffer, const std::size_t rowCount)
 
 /**
 * Transforms buffer by splitting into 4 rows and shifting each row a different amount.
-* 
+*
 * See FIPS 197, Section 5.1.2: ShiftRows()
 */
 void aes::shiftRows(unsigned char* buffer, const std::size_t size, const std::size_t rowCount)
@@ -649,7 +857,7 @@ void aes::shiftRows(unsigned char* buffer, const std::size_t size, const std::si
 
 /**
 * Transforms each byte of the 16-byte buffer.
-* 
+*
 * See FIPS 197 Section 5.1.1: SubBytes()
 */
 void aes::sBoxSubstitution(unsigned char* const& buffer, const std::size_t bufferSize)

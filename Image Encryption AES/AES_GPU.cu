@@ -5,14 +5,14 @@
 #include "AESFunctions.h"
 
 //starts at the chunk and sends each block to a thread to be encrypted
-__global__ void AES_GPU::encryptChunkAES_GPU(unsigned char* chunk, unsigned int* expandedKey, unsigned __int64 numRounds, unsigned char* key, unsigned __int64 keyWordSize) {
+__global__ void AES_GPU::encryptChunkAES_GPU(unsigned char* chunk, unsigned int* expandedKey, unsigned __int64 numRounds, unsigned int * key, unsigned __int64 keyWordSize) {
     unsigned int i = threadIdx.x;
-    unsigned __int64 offset = i * AES_BLOCK_SIZE;
+    unsigned __int64 offset = i * 16; //block size
 
     encryptBlockAES_GPU(chunk + offset, expandedKey, numRounds, key, keyWordSize);
 }
 
-__device__ void AES_GPU::encryptBlockAES_GPU(unsigned char* buffer, unsigned int* expandedKeys, unsigned __int64 numRounds, unsigned char* key, unsigned __int64 keySizeWords)
+__device__ void AES_GPU::encryptBlockAES_GPU(unsigned char* buffer, unsigned int* expandedKeys, unsigned __int64 numRounds, unsigned int* key, unsigned __int64 keySizeWords)
 {
     static constexpr int ROUND_KEY_SIZE = 16;
 
