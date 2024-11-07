@@ -1,0 +1,209 @@
+---------- File 1: ../../x64/Release/InputImages/BlackMarble_2016_1400m_africa_m_labeled.png done ----------
+Key: IQzHDIf5TYdnWw3G
+
+Run Mode:
+  Do Sequential:   FALSE
+  Do Parallel:     TRUE
+  Encryption mode: ENCRYPT
+Read File: ../../x64/Release/InputImages/BlackMarble_2016_1400m_africa_m_labeled.png
+
+File Length: 	19413843 bytes
+
+Key Size (Bits): 	128
+Key Size (Words): 	4
+
+Key:
+49	51	7a	48	44	49	66	35	54	59	64	6e	57	77	33	47	
+
+Parallel Write File: ../../x64/Release/InputImages/BlackMarble_2016_1400m_africa_m_labeled.png_par.enc
+Parallel time: 3.9492
+---------- File 2: ../../x64/Release/InputImages/BlackMarble_2016_928m_russia_west_labeled.png done ----------
+Key: IQzHDIf5TYdnWw3G
+
+Run Mode:
+  Do Sequential:   FALSE
+  Do Parallel:     TRUE
+  Encryption mode: ENCRYPT
+Read File: ../../x64/Release/InputImages/BlackMarble_2016_928m_russia_west_labeled.png
+
+File Length: 	26113263 bytes
+
+Key Size (Bits): 	128
+Key Size (Words): 	4
+
+Key:
+49	51	7a	48	44	49	66	35	54	59	64	6e	57	77	33	47	
+
+Parallel Write File: ../../x64/Release/InputImages/BlackMarble_2016_928m_russia_west_labeled.png_par.enc
+Parallel time: 5.34509
+---------- File 3: ../../x64/Release/InputImages/LargeTestImage.png done ----------
+Key: IQzHDIf5TYdnWw3G
+
+Run Mode:
+  Do Sequential:   FALSE
+  Do Parallel:     TRUE
+  Encryption mode: ENCRYPT
+Read File: ../../x64/Release/InputImages/LargeTestImage.png
+
+File Length: 	136028052 bytes
+
+Key Size (Bits): 	128
+Key Size (Words): 	4
+
+Key:
+49	51	7a	48	44	49	66	35	54	59	64	6e	57	77	33	47	
+
+Parallel Write File: ../../x64/Release/InputImages/LargeTestImage.png_par.enc
+Parallel time: 27.716
+---------- File 4: ../../x64/Release/InputImages/SmallTestImage.JPG done ----------
+Key: IQzHDIf5TYdnWw3G
+
+Run Mode:
+  Do Sequential:   FALSE
+  Do Parallel:     TRUE
+  Encryption mode: ENCRYPT
+Read File: ../../x64/Release/InputImages/SmallTestImage.JPG
+
+File Length: 	1758074 bytes
+
+Key Size (Bits): 	128
+Key Size (Words): 	4
+
+Key:
+49	51	7a	48	44	49	66	35	54	59	64	6e	57	77	33	47	
+
+Parallel Write File: ../../x64/Release/InputImages/SmallTestImage.JPG_par.enc
+Parallel time: 0.372773
+---------- File 5: ../../x64/Release/InputImages/TestEncryptDoc.txt.txt done ----------
+Key: IQzHDIf5TYdnWw3G
+
+Run Mode:
+  Do Sequential:   FALSE
+  Do Parallel:     TRUE
+  Encryption mode: ENCRYPT
+Read File: ../../x64/Release/InputImages/TestEncryptDoc.txt.txt
+
+File Length: 	160 bytes
+
+Key Size (Bits): 	128
+Key Size (Words): 	4
+
+Key:
+49	51	7a	48	44	49	66	35	54	59	64	6e	57	77	33	47	
+
+Parallel Write File: ../../x64/Release/InputImages/TestEncryptDoc.txt.txt_par.enc
+Parallel time: 3.24e-05
+---------- File 6: ../../x64/Release/InputImages/bridger-tower-VEjBbVtDgCM-unsplash.jpg done ----------
+Key: IQzHDIf5TYdnWw3G
+
+Run Mode:
+  Do Sequential:   FALSE
+  Do Parallel:     TRUE
+  Encryption mode: ENCRYPT
+Read File: ../../x64/Release/InputImages/bridger-tower-VEjBbVtDgCM-unsplash.jpg
+
+File Length: 	1588136 bytes
+
+Key Size (Bits): 	128
+Key Size (Words): 	4
+
+Key:
+49	51	7a	48	44	49	66	35	54	59	64	6e	57	77	33	47	
+
+Parallel Write File: ../../x64/Release/InputImages/bridger-tower-VEjBbVtDgCM-unsplash.jpg_par.enc
+Parallel time: 0.325664
+---------- File 7: ../../x64/Release/InputImages/jonny-gios-Woje8avAjWo-unsplash.jpg done ----------
+Key: IQzHDIf5TYdnWw3G
+
+Run Mode:
+  Do Sequential:   FALSE
+  Do Parallel:     TRUE
+  Encryption mode: ENCRYPT
+Read File: ../../x64/Release/InputImages/jonny-gios-Woje8avAjWo-unsplash.jpg
+
+File Length: 	8633962 bytes
+
+Key Size (Bits): 	128
+Key Size (Words): 	4
+
+Key:
+49	51	7a	48	44	49	66	35	54	59	64	6e	57	77	33	47	
+
+Parallel Write File: ../../x64/Release/InputImages/jonny-gios-Woje8avAjWo-unsplash.jpg_par.enc
+Parallel time: 1.76693
+---------- File 8: ../../x64/Release/InputImages/mathias-reding-jv_UfFQ_QNU-unsplash.jpg done ----------
+Key: IQzHDIf5TYdnWw3G
+
+Run Mode:
+  Do Sequential:   FALSE
+  Do Parallel:     TRUE
+  Encryption mode: ENCRYPT
+Read File: ../../x64/Release/InputImages/mathias-reding-jv_UfFQ_QNU-unsplash.jpg
+
+File Length: 	2017249 bytes
+
+Key Size (Bits): 	128
+Key Size (Words): 	4
+
+Key:
+49	51	7a	48	44	49	66	35	54	59	64	6e	57	77	33	47	
+
+Parallel Write File: ../../x64/Release/InputImages/mathias-reding-jv_UfFQ_QNU-unsplash.jpg_par.enc
+Parallel time: 0.40595
+---------- File 9: ../../x64/Release/InputImages/resource-database-giRAZHzYtpw-unsplash.jpg done ----------
+Key: IQzHDIf5TYdnWw3G
+
+Run Mode:
+  Do Sequential:   FALSE
+  Do Parallel:     TRUE
+  Encryption mode: ENCRYPT
+Read File: ../../x64/Release/InputImages/resource-database-giRAZHzYtpw-unsplash.jpg
+
+File Length: 	1714549 bytes
+
+Key Size (Bits): 	128
+Key Size (Words): 	4
+
+Key:
+49	51	7a	48	44	49	66	35	54	59	64	6e	57	77	33	47	
+
+Parallel Write File: ../../x64/Release/InputImages/resource-database-giRAZHzYtpw-unsplash.jpg_par.enc
+Parallel time: 0.346576
+---------- File 10: ../../x64/Release/InputImages/sean-pierce-SR_A_b97AbM-unsplash.jpg done ----------
+Key: IQzHDIf5TYdnWw3G
+
+Run Mode:
+  Do Sequential:   FALSE
+  Do Parallel:     TRUE
+  Encryption mode: ENCRYPT
+Read File: ../../x64/Release/InputImages/sean-pierce-SR_A_b97AbM-unsplash.jpg
+
+File Length: 	2448280 bytes
+
+Key Size (Bits): 	128
+Key Size (Words): 	4
+
+Key:
+49	51	7a	48	44	49	66	35	54	59	64	6e	57	77	33	47	
+
+Parallel Write File: ../../x64/Release/InputImages/sean-pierce-SR_A_b97AbM-unsplash.jpg_par.enc
+Parallel time: 0.503355
+---------- File 11: ../../x64/Release/InputImages/sergio-zhukov-33ZIFz74ZY8-unsplash.jpg done ----------
+Key: IQzHDIf5TYdnWw3G
+
+Run Mode:
+  Do Sequential:   FALSE
+  Do Parallel:     TRUE
+  Encryption mode: ENCRYPT
+Read File: ../../x64/Release/InputImages/sergio-zhukov-33ZIFz74ZY8-unsplash.jpg
+
+File Length: 	6458538 bytes
+
+Key Size (Bits): 	128
+Key Size (Words): 	4
+
+Key:
+49	51	7a	48	44	49	66	35	54	59	64	6e	57	77	33	47	
+
+Parallel Write File: ../../x64/Release/InputImages/sergio-zhukov-33ZIFz74ZY8-unsplash.jpg_par.enc
+Parallel time: 1.31172

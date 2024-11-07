@@ -15,23 +15,19 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="AESProject.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="AESFunctions.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="AESFunctions.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
     <Text Include="testencrypt.txt" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="AES_GPU.cu" />
-    <None Include="AES_GPU.cuh" />
+    <CudaCompile Include="AESFunctions.cpp">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="AESProject.cpp">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="AES_GPU.cu" />
+    <CudaCompile Include="AES_GPU.cuh" />
+    <CudaCompile Include="AESFunctions.h">
+      <Filter>Header Files</Filter>
+    </CudaCompile>
   </ItemGroup>
 </Project>

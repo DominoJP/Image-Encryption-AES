@@ -180,9 +180,11 @@ double aes::encryptFileAES_parallel(std::ifstream& inFile, std::ofstream& outFil
 
 double aes::encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, uint32_t* key, std::size_t keyWordSize)
 {
-    const int CHUNK_SIZE = AES_BLOCK_SIZE * 512; //finalFileSize;
+    
+    const int THREAD_BLOCK_SIZE = 1024;
+    const int CHUNK_SIZE = 1024 * AES_BLOCK_SIZE; //finalFileSize;
     //Calculate Thread Block Size and number of Thread Blocks in a grid.
-
+    //const int THREAD_GRID_NUM_BLOCKS;
     assert(inFile.is_open() && outFile.is_open());
 
     // Number of rounds, based on key size
@@ -307,6 +309,7 @@ double aes::encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, ui
         }
 
         assert(dataSize % AES_BLOCK_SIZE == 0);
+        assert(CHUNK_SIZE == buffer.size() * sizeof(char));
 
         const long long numBlocks = dataSize / AES_BLOCK_SIZE;
 
@@ -319,7 +322,8 @@ double aes::encryptFileAES_GPU(std::ifstream& inFile, std::ofstream& outFile, ui
 
         par_start_time = omp_get_wtime();
 
-        AES_GPU::encryptChunkAES_GPU<<<1,CHUNK_SIZE>>>(d_chunk, d_expandedKeys, numRounds, d_key, keyWordSize);
+
+        AES_GPU::encryptChunkAES_GPU<<<1,THREAD_BLOCK_SIZE>>>(d_chunk, d_expandedKeys, numRounds, d_key, keyWordSize);
         
         par_end_time = omp_get_wtime();
 
