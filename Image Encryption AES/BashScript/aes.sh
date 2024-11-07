@@ -20,25 +20,26 @@ exec_path="./AES_Encryption"
 run_mode="both"
 # Default key type
 default_key_type=128
+# Decryption flag
+do_decryption=false
 
 # Parse command-line arguments
-while getopts "d:e:sphk:" opt; do
+while getopts "d:e:sphk:x" opt; do
     case $opt in
         d) input_dir="$OPTARG" ;;
         e) exec_path="$OPTARG" ;;
-        s) run_mode="sequential" ;;
-        p) run_mode="parallel" ;;
+        s) run_mode="seq" ;;
+        p) run_mode="par" ;;
         k) default_key_type="$OPTARG" ;;
-        h) echo "Usage: $0 [-d input_directory] [-e executable_path] [-s (sequential)] [-p (parallel)] [-k key_type (128/192/256)]
-    $ & 'Image Encryption AES.exe' <inputFile> <key> [-spde]" ; exit 0 ;;
-        *) echo "Usage: $0 [-d input_directory] [-e executable_path] [-s (sequential)] [-p (parallel)] [-k key_type (128/192/256)]
-    $ & 'Image Encryption AES.exe' <inputFile> <key> [-spde]" ; exit 1 ;;
+        x) do_decryption=true ;;
+        h) echo "Usage: $0 [-d input_directory] [-e executable_path] [-s (sequential)] [-p (parallel)] [-k key_type (128/192/256)] [-x (enable decryption)]" ; exit 0 ;;
+        *) echo "Usage: $0 [-d input_directory] [-e executable_path] [-s (sequential)] [-p (parallel)] [-k key_type (128/192/256)] [-x (enable decryption)]" ; exit 1 ;;
     esac
 done
 
 # Check if the executable exists in the specified path
 if [[ ! -f "$exec_path" ]]; then
-    echo "Error: AES_Encryption not found at $exec_path."
+    echo "Error: Executable not found at $exec_path."
     exit 1
 fi
 
@@ -50,6 +51,7 @@ echo "Input directory: $input_dir"
 echo "Executable path: $exec_path"
 echo "Default key type: AES-$default_key_type"
 echo "Run mode: $run_mode"
+echo "Decryption: $do_decryption"
 echo ""
 
 # Overwrite the output file at the start
@@ -64,9 +66,9 @@ for image_file in "$input_dir"/*; do
         exit 1
     fi
 
-    if [[ "$image_file" == *.enc ]]; then
-        echo "Skipping this file!"
-        echo ""
+    if [[ "$image_file" == *.enc || "$image_file" == *_par* || "$image_file" == *_seq* ]]; then
+        # echo "Skipping this file!"
+        # echo ""
         continue # Skip this iteration if this file is already encrypted
     fi
     
@@ -106,24 +108,65 @@ for image_file in "$input_dir"/*; do
     echo "Size: $image_size KB"
     echo "Key: $key (Length: $key_length) (AES-$aes_type)"
     
-    # Run AES_Encryption with the appropriate mode
     case $run_mode in
-        "sequential")
-            "$exec_path"  "$image_file" "$key" -s >> "$output_file" ;;
-        "parallel")
-            "$exec_path"  "$image_file" "$key" -p >> "$output_file" & ;;
+        "seq")
+            encryption_output=$("$exec_path" "$image_file" "$key" -s)
+            ;;
+        "par")
+            encryption_output=$("$exec_path" "$image_file" "$key" -p &)
+            ;;
         "both")
-            "$exec_path" "$image_file" "$key" >> "$output_file" ;;
+            encryption_output=$("$exec_path" "$image_file" "$key")
+            ;;
     esac
+
+    # Write output to file
+    echo "$encryption_output" >> "$output_file"
+
+    # Extract and display the timing information
+    encryption_time=$(echo "$encryption_output" | grep -i "time")
+    echo "Encryption time for file $index: $encryption_time"
 
     echo -e "" >> "$output_file"
     
     # Ensure each file runs sequentially but each file is processed in parallel
     wait 
     echo ""
+    
+    # Decryption step if enabled
+    if [ "$do_decryption" = true ]; then
+        encrypted_file="${image_file}_${run_mode}.enc"
+        echo "----------Decrypting file $index: $encrypted_file----------"
+        echo "----------Decrypting file $index----------" >> "$output_file"
+        
+        # Run AES_Encryption for decryption and capture the output
+        case $run_mode in
+            "seq")
+                decryption_output=$("$exec_path" "$encrypted_file" "$key" -sd)
+                ;;
+            "par")
+                decryption_output=$("$exec_path" "$encrypted_file" "$key" -pd &)
+                ;;
+            "both")
+                decryption_output=$("$exec_path" "$encrypted_file" "$key" -d)
+                ;;
+        esac
+
+        # Write output to file
+        echo "$decryption_output" >> "$output_file"
+
+        # Extract and display the timing information
+        decryption_time=$(echo "$decryption_output" | grep -i "time")
+        echo "Decryption time for file $index: $decryption_time"
+        wait
+        echo "Decryption completed for file $index."
+        echo ""
+        echo "" >> "$output_file"
+    fi
+
+
     ((index++))
 done
 
 echo "Encryption completed for all files in $input_dir."
-
-
+echo "Output including timings written in $output_file"
