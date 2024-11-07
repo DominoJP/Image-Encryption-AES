@@ -125,7 +125,8 @@ for image_file in "$input_dir"/*; do
 
     # Extract and display the timing information
     encryption_time=$(echo "$encryption_output" | grep -i "time")
-    echo "Encryption time for file $index: $encryption_time"
+    echo "Encryption time for file $index:" 
+    echo "$encryption_time"
 
     echo -e "" >> "$output_file"
     
