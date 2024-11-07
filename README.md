@@ -23,7 +23,7 @@ Key aspects of this project include:
 - Applying AES encryption to a public image dataset
 - Demonstrating the complexity of image encryption
 - Utilizes AI tools for generating the sequential program version
-- Applies parallelism to the encryption algorithm to demonstrates the difference in performance between parallel and sequential encryption.
+- Applies parallelism to the encryption algorithm to demonstrate the difference in performance between parallel and sequential encryption.
 
 
 
@@ -74,7 +74,7 @@ cd Image-Encryption-AES
 
 
 
-### Detailed File Explanations
+### Detailed File Explanations for Core Files
 
 #### AESFunctions.cpp
 The **AESFunctions.cpp** file implements the core functionality of the project for both encryption and decryption while handling sequential and parallel processing methods.
@@ -84,8 +84,8 @@ The **AESFunctions.cpp** file implements the core functionality of the project f
 
 1. **File Encryption Functions**:
    - **`encryptFileAES_seq`**: 
-     - **Purpose**: Encrypts an entire file sequentially using the AES algorithm.
-     - **How It Works**: This function reads data from an input file in chunks, encrypts each chunk block-by-block, and writes the encrypted data to an output file.
+     - **Purpose**: Encrypts an entire file sequentially using the AES algorithm. This function reads data from an input file in chunks, encrypts each chunk block-by-block by calling `encryptBlockAES`, and writes the encrypted data to an output file. 
+                    If the last block isn’t a multiple of 16 bytes, it applies PKCS7 padding to ensure AES can be utilized. Additionally, it can measure execution time for performance evaluation.
      - **Steps**:
        1. **Key Expansion**: Calls the `expandKey` function to generate round keys for AES encryption.
        2. **Block Encryption**: For each chunk, it encrypts each 16-byte block by calling the `encryptBlockAES` function. 
@@ -93,24 +93,20 @@ The **AESFunctions.cpp** file implements the core functionality of the project f
        4. **Performance Measurement**: Measures the time taken for encryption to evaluate performance.
 
    - **`encryptFileAES_parallel`**: 
-     - **Purpose**: Encrypts a file in parallel, leveraging multi-core processing with OpenMP for faster encryption.
-     - **How It Works**: This function reads data from an input file in chunks and encrypts block-by-block in a similar way to `encryptFileAES_seq`. 
+     - **Purpose**:This function reads data from an input file in chunks and encrypts block-by-block in a similar way to `encryptFileAES_seq`. 
                          Instead of doing so sequentially it uses OpenMP to parallelize the encryption of multiple blocks within each chunk.
      - **Benefits**: Provides superior speed when compared to sequential implementation on multi-core systems. This is especially true for large files.
 
 2. **File Decryption Functions**:
    - **`decryptFileAES_seq`**:
-     - **Purpose**: Decrypts an entire AES-encrypted file sequentially.
-     - **How It Works**: This function reads encrypted data from an input file in chunks, decrypts each chunk block-by-block, and writes the decrypted data to an output file.
-     - **Steps**:
+     - **Purpose**: Decrypts an entire AES-encrypted file sequentially by reading encrypted data from an input file in chunks, decrypting each chunk block-by-block, and writing the decrypted data to an output file.
        1. **Key Expansion**: Calls the `expandKey` function to generate round keys required for AES decryption.
        2. **Block Decryption**: For each chunk, it decrypts each 16-byte block by calling the `decryptBlockAES` function.
        3. **Padding Removal**: Checks for PKCS7 padding on the last block and removes it to decrypt the file.
        4. **Performance Measurement**: Measures the time taken for decryption to assess performance.
 
    - **`decryptFileAES_parallel`**:
-     - **Purpose**: Decrypts a file in parallel using OpenMP, allowing for multi-threaded processing.
-     - **How It Works**: This function reads encrypted data from an input file in chunks and decrypts each block in a similar manner to `decryptFileAES_seq`.
+     - **Purpose**: This function reads encrypted data from an input file in chunks and decrypts each block in a similar manner to `decryptFileAES_seq`.
                          However, it uses OpenMP to parallelize the decryption of multiple blocks within each chunk.
      - **Benefits**: Significantly faster than the sequential implementation on systems with multiple cores, making it especially efficient for large files.
 
@@ -129,8 +125,72 @@ The **AESFunctions.cpp** file implements the core functionality of the project f
        1. **Initial Round**: XORs the block with the last round key.
        2. **Rounds**: For each round, it applies the four primary inverse AES transformations: `InverseShiftRows`, `InverseSubBytes`, `InverseMixColumns`, and `AddRoundKey`.
        3. **Final Round**: Applies `InverseShiftRows`, `InverseSubBytes`, and `AddRoundKey` without performing `InverseMixColumns`.
-     
 
+4. **Key Expansion**:
+   - **`expandKey`**:
+     - **Purpose**: This function generates the round keys from the AES key, as specified by the AES standard (FIPS 197).
+
+5. **Helper Functions**:
+   - **Padding Function**:
+     - **`padPKCS7`**:
+       - **Purpose**: Adds PKCS7 padding to the data, ensuring that the length of the data for the block is a multiple of 16.
+
+     - **`getSizeBeforePKCS7Padding`**:
+       - **Purpose**: Removes PKCS7 padding after decryption to restore the original data size.
+- **Transformation Functions**:
+     - **`rotateWordLeft`**:
+       - **Purpose**: Rotates a 32-bit word left by a specified number of bytes, assisting in key expansion..
+
+     - **`sBoxSubstitution`**:
+       - **Purpose**: Substitutes each byte with a value from the AES S-Box.
+
+     - **`inverseSBoxSubstitution`**:
+       - **Purpose**: Reverses `sBoxSubstitution` during decryption using values from the inverse AES S-Box.
+
+     - **`mixColumns`**:
+       - **Purpose**: Transforms the data by combining bytes within each column to spread out bits
+
+     - **`inverseMixColumns`**:
+       - **Purpose**: Reverses the `mixColumns` transformation, reconstructing original column data for decryption.
+
+
+### AESFunctions.handles
+**AESFunctions.h** serves as a header file for our implementation of AES encryption and decryption functions. It defines constants, function declarations, and AES parameters. 
+This file provides the essential declarations and configurations needed by the functions located in `AESFunctions.cpp`.
+
+
+### AESProject.cpp
+
+**AESProject.cpp** serves as the main entry point of the program, managing user input, configuring encryption and decryption settings, and invoking core AES functions. 
+It handles both sequential and parallel encryption or decryption, based on user-provided command-line arguments.
+
+#### Key Components and Functions
+
+1. **Command-Line Interface (CLI): `printHelpMsg`**:
+   - **Purpose**: Prints help msg that indicates the program accepts user command-line arguments to run encryption/decryption options, key size, and input file.
+   - **Options**:
+     - `-s`: Sequential mode only
+     - `-p`: Parallel mode only
+     - `-d`: Decryption (for specified modes)
+     - `-e`: Encryption mode (for specified modes; serves as default selection)
+     - `no flag`: Run encryption for both modes and compare outputs.
+
+2. **Main Function**:
+   - **Purpose**: Initializes the command line configuration, validates inputs, and executes program per the selected options.
+   - **Steps**:
+     1. **Configuration Setup**: Sets default values for configuration options (`optionSequential`, `optionParallel`, `optionDecrypt`) and reads additional options from command-line arguments.
+                                 It then takes the key from user input and adjusts key size based on the length (128, 192, or 256 bits). If the key is shorter than the specified size it will add padding.
+     2. **Encryption and Decryption Execution**: Based on the user CLI arguments::
+        - Opens the input file for reading.
+        - Sets up output files for encrypted data, with extensions indicating sequential (`_seq.enc`) or parallel (`_par.enc`) mode.
+        - Runs sequential or parallel encryption/decryption by calling `encryptFileAES_seq` or `decryptFileAES_seq` and `encryptFileAES_parallel` or `decryptFileAES_parallel`.
+
+3. **Sequential and Parallel Processing**:
+   - **Sequential Mode**: Runs encryption or decryption sequentially by calling either `encryptFileAES_seq` or `decryptFileAES_seq` on the input file.
+   - **Parallel Mode**: Runs in parallel using OpenMP, calling `encryptFileAES_parallel` or `decryptFileAES_parallel`, distributing tasks across multiple cores for faster processing.
+
+4. **File Comparison and Verification**:
+   - **Purpose**: Calls `aes::compareFiles` to perform a byte-by-byte comparison of the sequential and parallel output files.
 
 
 ## Contributing
