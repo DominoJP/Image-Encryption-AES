@@ -11,7 +11,7 @@ this program showcases a symmetric-key block cipher encryption for visual data p
 3. [Usage](#usage)
 4. [Code Structure](#code-structure)
 5. [Contributing](#contributing)
-6. [A.I. Implementation](#ai-implementation-and-outside-code-sources-implementation)
+6. [A.I. Implementation](#ai-implementation-and-outside-code-sources)
 
 
 ## Introduction
@@ -264,7 +264,7 @@ It handles both sequential and parallel encryption or decryption, based on user-
 
 This project was developed by: Warren Kaye, Andrew Miner, Joshua Planovsky, Daniel Sarmiento , Jhermayne Abdon,  and Ali Maamoun. 
 
-## A.I. Implementation and Outside Code Sources
+## AI Implementation and Outside Code Sources
 
 Due to the complex nature of this project this group was allowed to use generative A.I. to create sequential implementation of the program. Primarily, we used ChatGPT
 to create a sequential encryption implementation and expanded from there in order to develop our parralel and decryption functions. The link to the prompts given to ChatGPT
