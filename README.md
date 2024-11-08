@@ -67,19 +67,19 @@ cd Image-Encryption-AES
    - Select **Build** > **Build Solution** to compile the project.
 
 4. **Run the Application**:
-   - After building, you should see the output executable in the project's `Debug` folder.
+   - After building, you should see the executable in the project's `Debug` folder.
    - You can run the executable with the necessary arguments directly from Visual Studio (under **Debug** > **Start Without Debugging**).
 
 
 **To build and run the project via command line**
 
   1. **Build the solution:** 
-     -Use the following command to build the executable with openmp support.
-     -`g++ *.cpp -fopenmp -o AES_Encryption`
+     - Use the following command to build the executable with openmp support.
+     - `g++ *.cpp -fopenmp -o AES_Encryption`
 
 
   2. **Run the application:**
-     -Once the executable file is created, you can run the program using the following command.
+     - Once the executable file is created, you can run the program using the following command.
      -`./AES_Encryption <inputFile> <key> [-spde]`
         -`<image_file_path>`: Path to the image file you want to encrypt or decrypt.
         - `<key>`: A string of characters for encryption, which determines the key size:
@@ -94,16 +94,22 @@ cd Image-Encryption-AES
 
 **To build and run the project via bashscript**
 
+**for CSUN VM:**
+  - `aem22021@10.166.250.31:/home/aem22021/dev/comp535/project1`
+
+
   1. **Run the Bash script to display usage information:**
-     -run the following command to display usage info.
+     - run the following command to display usage info.
       -`./aes.sh -h`
     
   2. **The usage help for the Bash script will display options for running the program:**
      - `./aes.sh [-d input_images_directory] [-e executable_path] [-s (sequential)] [-p (parallel)] [-k (128/192/256)] [-x (enable decryption)]`
 
   3. **Note:**
-    -You can simply run ./aes.sh to run the executable and input images in the current directory to run AES-128 ENCRYPTION both sequentially and in parallel.
+    - You can simply run ./aes.sh to run the executable and input images in the current directory to run AES-128 ENCRYPTION both sequentially and in parallel.
      Running sequentially plus decrypting may take up to 4 minutes to complete the whole dataset on a VM.
+    - Any output from the executable will be piped into ./AES_Encryption_output.txt
+
 
 
 
@@ -129,7 +135,7 @@ cd Image-Encryption-AES
     - `Image Encryption AES.vcxproj` - Visual Studio project file
     - `Image Encryption AES.vcxproj.filters` - Visual Studio project filters
     - **BashScript/** - Directory with additional bash scripts for automation
-      - `aes.sh` - bashscript for running the project (still needs decryption instructions)
+      - `aes.sh` - bashscript for running the project 
 
 
 
