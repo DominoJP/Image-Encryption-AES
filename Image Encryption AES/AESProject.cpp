@@ -41,7 +41,7 @@ static void printHelpMsg(void)
 {
     const char* help_msg = R"heredoc(
     Usage:
-        $ & 'Image Encryption AES.exe' <inputFile> <key> [-spde]
+        $ & 'AES_Encryption.exe' <inputFile> <key> [-spde]
 
     Arguments:
         inputFile:  path to file that needs encrypting.  Output file will be
@@ -379,7 +379,7 @@ bool testKnown128()
         0x20, 0x54, 0x77, 0x6F
     };
 
-    std::vector<unsigned char> originalData(dataBuffer);
+    std::array<unsigned char, AES_BLOCK_SIZE> originalData(dataBuffer);
 
     // Cast KNOWN_KEY into array of 32-bit elements
     const uint32_t* KNOWN_KEY_WORDS = reinterpret_cast<const uint32_t*>(KNOWN_KEY);

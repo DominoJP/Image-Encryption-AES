@@ -158,6 +158,17 @@ namespace aes
 	unsigned char galoisMultiply(unsigned char value, unsigned char multiplier);
 
 	/**
+	 * @brief Peforms Galois mutiplication (more efficient)
+	 *
+	 * @param value The byte to be multiplied
+	 *
+	 * @note This function was written with the help of ChatGPT.
+	 *
+	 * @return Multiplication result
+	 */
+	unsigned char galoisMultiplyBy2(unsigned char value);
+
+	/**
 	 * @brief Mix columns in AES block 
 	 * 
 	 * @param buffer Data buffer in AES block
