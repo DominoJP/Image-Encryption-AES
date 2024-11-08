@@ -11,6 +11,7 @@ this program showcases a symmetric-key block cipher encryption for visual data p
 3. [Usage](#usage)
 4. [Code Structure](#code-structure)
 5. [Contributing](#contributing)
+6. [A.I. Implementation](#a.i._implementation)
 
 
 ## Introduction
@@ -262,3 +263,24 @@ It handles both sequential and parallel encryption or decryption, based on user-
 ## Contributing
 
 This project was developed by: Warren Kaye, Andrew Miner, Joshua Planovsky, Daniel Sarmiento , Jhermayne Abdon,  and Ali Maamoun. 
+
+## A.I. Implementation and Outside Code Sources
+
+Due to the complex nature of this project this group was allowed to use generative A.I. to create sequential implementation of the program. Primarily, we used ChatGPT
+to create a sequential encryption implementation and expanded from there in order to develop our parralel and decryption functions. The link to the prompts given to ChatGPT
+can be found here:  https://chatgpt.com/share/6701af5b-db5c-8006-86dc-3a844d136514
+(Note: Using ctrl+f "note" in the source code will list every function ChatGPT helped with)
+
+Secondly in order to implement our bashscript we also utilized chatgpt to help us formulate the logic  for it using the following prompts:
+[Previous Bash Script]
+1. make this bash script have the option to take arguments for a directory of input images 
+2. take a flag -p or -s to only run all files in parallel or sequential by adding the flag -s or -p to the executable command 
+3. also add an option for an executable path and create a usage flag which will only display help information for how to use the script
+4. also make a flag for which key type to use make the default 128. add to help usage
+5. i have made some changes, now include the usage of decryption! by adding -x, we will do all we have done by default, both sequential and parallel and then decrypt in sequential and parallel, but if the user puts -x and -p, then we will encrypt in parallel then decrypt in parallel. also add this to the usage.
+Generated using OpenAI. https://chat.openai.com/” 
+(Note: we were unable to generate a full chat link due to limitations on illustrations)
+
+
+Finally, in order to ensure that our files were identical we made use of a compareFiles function found on stack overflow which can be cited here:
+https://stackoverflow.com/questions/6163611/compare-two-files
