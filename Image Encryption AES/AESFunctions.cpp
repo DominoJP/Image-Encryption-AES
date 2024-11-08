@@ -588,6 +588,24 @@ unsigned char aes::galoisMultiply(unsigned char value, unsigned char multiplier)
     return result;
 }
 
+/*
+* @brief GaloisMultiply value by multiplier
+*
+* @param value byte value to be multiplied
+*
+* @note This function was written with the help of ChatGPT.
+*
+* @return Multiplication result
+*/
+unsigned char aes::galoisMultiplyBy2(unsigned char value)
+{
+    unsigned char result = value << 1;
+    if (value & 0x80) { // If the most significant bit is set (overflow)
+        result ^= 0x1b; // XOR with the AES irreducible polynomial
+    }
+    return result;
+}
+
 /**
  * @brief Transform buffer by splitting into columns and performing matrix multiplication.
  *
@@ -609,15 +627,30 @@ void aes::mixColumns(unsigned char* buffer, const std::size_t size, const std::s
 
     assert(size % rowCount == 0);
 
-    std::vector<unsigned char> mixed(AES_BLOCK_SIZE, 0);
+    std::vector<unsigned char> mixed = std::vector<unsigned char>(AES_BLOCK_SIZE, 0);
     const std::size_t colCount = size / rowCount;
     for (std::size_t col = 0; col < colCount; ++col) {
 
         for (std::size_t mixerRow = 0; mixerRow < AES_BLOCK_ROWS; ++mixerRow) {
             unsigned char mixedValue = 0;  // Temporary value to accumulate results
             for (std::size_t mixerCol = 0; mixerCol < AES_BLOCK_COLS; ++mixerCol) {
+                unsigned char temp = 0;
                 unsigned char value = buffer[col * rowCount + mixerCol];
-                mixedValue ^= galoisMultiply(value, COL_MIXER[mixerRow][mixerCol]);
+                switch (COL_MIXER[mixerRow][mixerCol]) {
+                case 1:
+                    temp = value;
+                    break;
+                case 2:
+                    temp = galoisMultiplyBy2(value);
+                    break;
+                case 3:
+                    temp = galoisMultiplyBy2(value) ^ value;
+                    break;
+                default:
+                    std::cout << "Error: Invalid Constant Array!" << std::endl;
+                    return;
+                }
+                mixedValue ^= temp;
             }
             mixed[col * rowCount + mixerRow] = mixedValue;
         }
