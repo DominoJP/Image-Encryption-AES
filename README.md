@@ -18,6 +18,10 @@ this program showcases a symmetric-key block cipher encryption for visual data p
 Image Encryption using AES is a C++ program designed to encrypt images using both sequential and parallel versions of the AES encryption algorithm.
 This project was designed to apply AES encryption to a public image dataset in order demonstrate the difference between sequential encryption and parallel encryption.
 Furthermore, the project utilizes AI tools to generate the sequential version of the program from which the basic structure of the parallel encryption algorithm is formed.
+Finally, The parallel version of the program leverages OpenMP, which serves as an extensive library for multi-threaded parallel processing in C++.
+Using OpenMP, the program distributes the workload of encrypting image data across multiple CPU cores. This is useful for encrypting large images or datasets since it reduces the time required compared to a purely sequential implementation.
+
+
 
 Key aspects of this project include:
 - Applying AES encryption to a public image dataset
@@ -33,6 +37,7 @@ Key aspects of this project include:
 - Uses AES-256 encryption standard
 - Provides console-based interface
 - Includes sample encrypted and decrypted images for demonstration
+- Utilizes OpenMP to achieve parallel processing
 
 
 ## Usage
@@ -42,12 +47,67 @@ To run the application:
 1. Clone the repository:
 git clone https://github.com/DominoJP/Image-Encryption-AES.git
 
-2. Navigate to the project directory:
+2. Navigate to the project directory on your system either via command line or file explorer:
 cd Image-Encryption-AES
 
-3. Build the solution:
+3. Build and Run the project
 
-4. Run the application:
+**To build and run the project with Visual Studio**
+  1. **Open the Project in Visual Studio**:
+     - Open Visual Studio.
+     - Select **Open a project or solution** and navigate to the `.sln` file in your project directory (`Image Encryption AES.sln`).
+     - Or simply double-click the vcxproj file in your project directory.
+
+2. **Configure OpenMP (for parallel processing)**:
+   - Go to **Project** > **Properties**.
+   - Under **Configuration Properties** > **C/C++** > **Language**, set **OpenMP Support** to **Yes**. This will enable OpenMP for parallel processing configurations
+
+3. **Set the Build Configuration**:
+   - Ensure that the configuration is set to **Debug** 
+   - Select **Build** > **Build Solution** to compile the project.
+
+4. **Run the Application**:
+   - After building, you should see the output executable in the project's `Debug` folder.
+   - You can run the executable with the necessary arguments directly from Visual Studio (under **Debug** > **Start Without Debugging**).
+
+
+**To build and run the project via command line**
+
+  1. **Build the solution:** 
+     -Use the following command to build the executable with openmp support.
+     -`g++ *.cpp -fopenmp -o AES_Encryption`
+
+
+  2. **Run the application:**
+     -Once the executable file is created, you can run the program using the following command.
+     -`./AES_Encryption <inputFile> <key> [-spde]`
+        -`<image_file_path>`: Path to the image file you want to encrypt or decrypt.
+        - `<key>`: A string of characters for encryption, which determines the key size:
+          - 16 characters: AES 128-bit mode.
+          - 17–24 characters: AES 192-bit mode.
+          - 25–32 characters: AES 256-bit mode.
+        - `<flag>`: Specifies the operation mode:
+        - `-s` for sequential mode only.
+        - `-p` for parallel mode only.
+        - `-e` for encryption flag. 
+        - `-d` for decryption flag. 
+
+**To build and run the project via bashscript**
+
+  1. **Run the Bash script to display usage information:**
+     -run the following command to display usage info.
+      -`./aes.sh -h`
+    
+  2. **The usage help for the Bash script will display options for running the program:**
+     - `./aes.sh [-d input_images_directory] [-e executable_path] [-s (sequential)] [-p (parallel)] [-k (128/192/256)] [-x (enable decryption)]`
+
+  3. **Note:**
+    -You can simply run ./aes.sh to run the executable and input images in the current directory to run AES-128 ENCRYPTION both sequentially and in parallel.
+     Running sequentially plus decrypting may take up to 4 minutes to complete the whole dataset on a VM.
+
+
+
+
 
 
 ## Code Structure
