@@ -11,7 +11,7 @@ this program showcases a symmetric-key block cipher encryption for visual data p
 3. [Usage](#usage)
 4. [Code Structure](#code-structure)
 5. [Contributing](#contributing)
-6. [A.I. Implementation](#a.i._implementation)
+6. [A.I. Implementation](#ai_implementation)
 
 
 ## Introduction
